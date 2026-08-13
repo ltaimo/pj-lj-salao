@@ -44,6 +44,20 @@ npm.cmd run db:seed
 
 Prefer `db:deploy` for staging/production.
 
+## Helper
+
+If you have the Supabase project ref and database password:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\configure-supabase-env.ps1 -ProjectRef PROJECT_REF -DatabasePassword "PASSWORD"
+```
+
+If your Supabase database is not in `aws-0-us-east-1`, pass the pooler host shown by Supabase:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\configure-supabase-env.ps1 -ProjectRef PROJECT_REF -DatabasePassword "PASSWORD" -RegionHost "aws-0-eu-west-1.pooler.supabase.com"
+```
+
 ## Vercel Environment Variables
 
 Set these in Vercel:
