@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  INVITED
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  nuit      String?
+  phone     String?
+  whatsapp  String?
+  email     String?
+  address   String?
+  currency  String   @default("MZN")
+  timezone  String   @default("Africa/Maputo")
+  language  String   @default("pt")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branches  Branch[]
+  users     User[]
+  settings  Setting[]
+  auditLogs AuditLog[]
+
+  @@map("organizations")
+}
+
+model Branch {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  code           String
+  phone          String?
+  address        String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  users        User[]
+  settings     Setting[]
+  auditLogs    AuditLog[]
+
+  @@unique([organizationId, code])
+  @@map("branches")
+}
+
+model User {
+  id               String     @id @default(uuid())
+  organizationId   String?
+  branchId         String?
+  email            String     @unique
+  name             String
+  phone            String?
+  passwordHash     String
+  refreshTokenHash String?
+  status           UserStatus @default(ACTIVE)
+  lastLoginAt      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  deletedAt        DateTime?
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  branch       Branch?       @relation(fields: [branchId], references: [id])
+  userRoles    UserRole[]
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        String
+  description String?
+  system      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Setting {
+  id             String   @id @default(uuid())
+  organizationId String?
+  branchId       String?
+  key            String
+  value          Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  branch       Branch?       @relation(fields: [branchId], references: [id])
+
+  @@unique([organizationId, branchId, key])
+  @@map("settings")
+}
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  organizationId String?
+  branchId       String?
+  userId         String?
+  action         String
+  entity         String
+  entityId       String?
+  before         Json?
+  after          Json?
+  ip             String?
+  device         String?
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  branch       Branch?       @relation(fields: [branchId], references: [id])
+  user         User?         @relation(fields: [userId], references: [id])
+
+  @@index([organizationId, branchId, createdAt])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}

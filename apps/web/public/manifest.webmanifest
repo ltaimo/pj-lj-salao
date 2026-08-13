@@ -1,0 +1,17 @@
+{
+  "name": "PJ&LJ Salon Manager",
+  "short_name": "PJ&LJ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f2ea",
+  "theme_color": "#177e70",
+  "lang": "pt",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
