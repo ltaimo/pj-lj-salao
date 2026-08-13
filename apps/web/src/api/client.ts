@@ -131,6 +131,36 @@ export type Sale = {
   payments: Array<{ method: string; amount: string }>;
 };
 
+export type AppUser = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  status: string;
+  roles: string[];
+};
+
+export type Role = {
+  id: string;
+  key: string;
+  name: string;
+  description?: string;
+};
+
+export type Setting = {
+  id: string;
+  key: string;
+  value: Record<string, unknown>;
+};
+
+export type AuditEvent = {
+  id: string;
+  action: string;
+  entity: string;
+  entityId?: string;
+  createdAt: string;
+};
+
 export type OperationsBootstrap = {
   clients: Client[];
   staff: Employee[];
@@ -234,4 +264,28 @@ export function createSale(payload: {
   tipAmount?: number;
 }) {
   return api<Sale>("/sales", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function listUsers() {
+  return api<AppUser[]>("/users");
+}
+
+export function listRoles() {
+  return api<Role[]>("/users/roles");
+}
+
+export function createUser(payload: { name: string; email: string; phone?: string; password: string; roles: string[] }) {
+  return api<AppUser>("/users", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function listSettings() {
+  return api<Setting[]>("/settings");
+}
+
+export function updateBusinessProfile(payload: Record<string, unknown>) {
+  return api<Setting>("/settings/business-profile", { method: "PUT", body: JSON.stringify(payload) });
+}
+
+export function listAudit() {
+  return api<AuditEvent[]>("/audit");
 }

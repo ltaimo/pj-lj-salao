@@ -1,17 +1,55 @@
-import { CalendarDays, LayoutDashboard, Menu, PackageSearch, Scissors, Settings, ShoppingCart, Users } from "lucide-react";
+import {
+  BarChart3,
+  CalendarDays,
+  LayoutDashboard,
+  Menu,
+  PackageSearch,
+  Percent,
+  Scissors,
+  Settings,
+  ShoppingCart,
+  Users,
+  WalletCards
+} from "lucide-react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { OperationsPage } from "./pages/OperationsPage";
 
-const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/pos", label: "POS", icon: ShoppingCart },
-  { to: "/agenda", label: "Agenda", icon: CalendarDays },
-  { to: "/clientes", label: "Clientes", icon: Users },
-  { to: "/servicos", label: "Servicos", icon: Scissors },
-  { to: "/stock", label: "Stock", icon: PackageSearch },
-  { to: "/admin", label: "Admin", icon: Settings }
+const moduleGroups = [
+  {
+    title: "Operacao",
+    items: [
+      { to: "/", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/pos", label: "POS", icon: ShoppingCart },
+      { to: "/agenda", label: "Agenda e fila", icon: CalendarDays }
+    ]
+  },
+  {
+    title: "Comercial",
+    items: [
+      { to: "/clientes", label: "Clientes", icon: Users },
+      { to: "/servicos", label: "Servicos", icon: Scissors },
+      { to: "/stock", label: "Stock", icon: PackageSearch },
+      { to: "/vendas", label: "Vendas", icon: WalletCards },
+      { to: "/fidelizacao", label: "Fidelizacao", icon: Percent }
+    ]
+  },
+  {
+    title: "Gestao",
+    items: [
+      { to: "/relatorios", label: "Relatorios", icon: BarChart3 },
+      { to: "/admin", label: "Administracao", icon: Settings }
+    ]
+  }
+];
+
+const mobileItems = [
+  moduleGroups[0].items[0],
+  moduleGroups[0].items[1],
+  moduleGroups[0].items[2],
+  moduleGroups[1].items[0],
+  moduleGroups[2].items[1]
 ];
 
 export function App() {
@@ -23,12 +61,17 @@ export function App() {
           <span>PJ&LJ</span>
           <small>Salon Manager</small>
         </div>
-        <nav>
-          {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? "active" : "")}>
-              <item.icon size={18} />
-              <span>{item.label}</span>
-            </NavLink>
+        <nav className="side-nav">
+          {moduleGroups.map((group) => (
+            <section key={group.title}>
+              <p>{group.title}</p>
+              {group.items.map((item) => (
+                <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? "active" : "")}>
+                  <item.icon size={18} />
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+            </section>
           ))}
         </nav>
       </aside>
@@ -36,7 +79,7 @@ export function App() {
         <header className="topbar">
           <div>
             <strong>PJ&LJ Salao Unissex</strong>
-            <span>Africa/Maputo · MZN</span>
+            <span>Operacao · Caixa · CRM · Stock · Fidelizacao</span>
           </div>
           <a className="login-link" href="/login">Entrar</a>
         </header>
@@ -48,17 +91,20 @@ export function App() {
           <Route path="/clientes" element={<OperationsPage mode="clientes" />} />
           <Route path="/servicos" element={<OperationsPage mode="servicos" />} />
           <Route path="/stock" element={<OperationsPage mode="stock" />} />
+          <Route path="/vendas" element={<OperationsPage mode="vendas" />} />
+          <Route path="/fidelizacao" element={<OperationsPage mode="fidelizacao" />} />
+          <Route path="/relatorios" element={<OperationsPage mode="relatorios" />} />
           <Route path="/admin" element={<OperationsPage mode="admin" />} />
         </Routes>
       </main>
       <nav className="bottom-nav">
-        {navItems.slice(0, 5).map((item) => (
+        {mobileItems.map((item) => (
           <NavLink key={item.to} to={item.to}>
             <item.icon size={20} />
-            <span>{item.label === "Dashboard" ? "Home" : item.label}</span>
+            <span>{item.label === "Dashboard" ? "Home" : item.label.replace(" e fila", "")}</span>
           </NavLink>
         ))}
-        <NavLink to="/admin">
+        <NavLink to="/relatorios">
           <Menu size={20} />
           <span>Mais</span>
         </NavLink>

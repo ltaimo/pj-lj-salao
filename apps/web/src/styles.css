@@ -60,7 +60,21 @@ a {
 
 .sidebar nav {
   display: grid;
+  gap: 18px;
+}
+
+.side-nav section {
+  display: grid;
   gap: 6px;
+}
+
+.side-nav p {
+  color: #bba98f;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  margin: 0 0 4px;
+  text-transform: uppercase;
 }
 
 .sidebar a {
@@ -101,6 +115,39 @@ main {
 .topbar span {
   color: #687078;
   font-size: 0.88rem;
+}
+
+.module-hero {
+  align-items: center;
+  background: #fffaf2;
+  border: 1px solid #e6ded2;
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 56px 1fr auto;
+  margin-bottom: 18px;
+  padding: 16px;
+}
+
+.module-hero p,
+.login-panel p,
+.login-brand-panel p {
+  color: #8e653f;
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.module-icon {
+  align-items: center;
+  background: #171615;
+  border-radius: 8px;
+  color: #f7d7a3;
+  display: grid;
+  height: 56px;
+  justify-items: center;
+  width: 56px;
 }
 
 .login-link,
@@ -174,6 +221,22 @@ h2 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.panel-grid,
+.admin-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.panel-grid .wide,
+.admin-grid .wide {
+  grid-column: 1 / -1;
+}
+
 .metric-card {
   background: #fffaf2;
   border: 1px solid #e6ded2;
@@ -218,6 +281,10 @@ h2 {
   min-height: 120px;
 }
 
+.empty-state.small {
+  min-height: 72px;
+}
+
 .notice {
   background: #fffaf2;
   border: 1px solid #d8d0c4;
@@ -257,6 +324,12 @@ h2 {
   padding: 18px;
 }
 
+.sticky-panel {
+  align-self: start;
+  position: sticky;
+  top: 84px;
+}
+
 .tool-panel.wide {
   grid-column: 1 / -1;
 }
@@ -277,6 +350,26 @@ h2 {
   grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
 }
 
+.tile-grid.compact {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip-row span {
+  background: #f3eadc;
+  border: 1px solid #e6ded2;
+  border-radius: 999px;
+  color: #4f3320;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
 .item-tile {
   align-items: stretch;
   background: white;
@@ -288,6 +381,10 @@ h2 {
   min-height: 116px;
   padding: 14px;
   text-align: left;
+}
+
+.service-tile {
+  background: #fffdf8;
 }
 
 .item-tile:hover {
@@ -306,9 +403,19 @@ h2 {
 }
 
 .cart-panel label,
-.form-panel label {
+.form-panel label,
+.form-grid label {
   display: grid;
   gap: 6px;
+}
+
+.form-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.form-grid.one {
+  grid-template-columns: 1fr;
 }
 
 input,
@@ -336,6 +443,10 @@ textarea {
 .queue-board {
   display: grid;
   gap: 10px;
+}
+
+.data-list.two-col {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .cart-line,
@@ -388,6 +499,20 @@ textarea {
   border-color: #d95f43 !important;
 }
 
+.report-strip {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.report-strip span {
+  background: white;
+  border: 1px solid #e6ded2;
+  border-radius: 8px;
+  color: #687078;
+  padding: 14px;
+}
+
 .receipt-preview {
   align-items: center;
   background: white;
@@ -415,22 +540,68 @@ textarea {
   padding-top: 16px;
 }
 
-.login-page {
+.pro-login {
+  align-items: stretch;
+  background: #171615;
   display: grid;
+  grid-template-columns: minmax(320px, 0.95fr) minmax(320px, 1.05fr);
   min-height: calc(100vh - 68px);
-  place-items: center;
-  padding: 24px;
+  padding: 0;
+}
+
+.login-brand-panel {
+  align-content: center;
+  background: #171615;
+  color: #fffaf2;
+  display: grid;
+  gap: 20px;
+  padding: 42px;
+}
+
+.login-brand-panel img {
+  border: 1px solid #4f4337;
+  border-radius: 8px;
+  height: 180px;
+  object-fit: cover;
+  width: 180px;
+}
+
+.login-brand-panel h1 {
+  max-width: 560px;
+}
+
+.login-brand-panel span {
+  color: #d8d0c4;
+}
+
+.login-health {
+  align-items: center;
+  border: 1px solid #9a3d2a;
+  border-radius: 999px;
+  color: #ffc1af;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 8px;
+  justify-self: start;
+  padding: 8px 12px;
+}
+
+.login-health.ok {
+  border-color: #f7d7a3;
+  color: #f7d7a3;
 }
 
 .login-panel {
+  align-self: center;
   background: #fffaf2;
   border: 1px solid #e6ded2;
   border-radius: 8px;
   display: grid;
   gap: 16px;
-  max-width: 420px;
-  padding: 24px;
-  width: 100%;
+  justify-self: center;
+  max-width: 460px;
+  padding: 28px;
+  width: calc(100% - 48px);
 }
 
 .login-panel label {
@@ -453,6 +624,51 @@ textarea {
   flex: 1;
   min-height: 42px;
   outline: 0;
+}
+
+.input-row .icon-button {
+  background: transparent;
+  color: #4f3320;
+  min-height: 34px;
+  padding: 0 8px;
+}
+
+.login-options {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.check-row {
+  align-items: center !important;
+  display: flex !important;
+  gap: 8px !important;
+}
+
+.check-row input {
+  min-height: auto;
+  width: auto;
+}
+
+.link-button {
+  background: transparent;
+  color: #8e653f;
+  min-height: 32px;
+  padding: 0;
+}
+
+.auth-required {
+  align-items: center;
+  display: grid;
+  justify-items: start;
+}
+
+.auth-required img {
+  border-radius: 8px;
+  height: 110px;
+  object-fit: cover;
+  width: 110px;
 }
 
 .form-message,
@@ -486,9 +702,57 @@ textarea {
 
   .metric-grid,
   .operations-grid,
+  .panel-grid,
+  .admin-grid,
   .pos-grid,
   .split-grid {
     grid-template-columns: 1fr;
+  }
+
+  .module-hero {
+    grid-template-columns: 48px 1fr;
+  }
+
+  .module-hero .status {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .sticky-panel {
+    bottom: 76px;
+    position: sticky;
+    top: auto;
+    z-index: 2;
+  }
+
+  .data-list.two-col,
+  .report-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .pro-login {
+    display: block;
+    min-height: calc(100vh - 68px);
+    padding-bottom: 24px;
+  }
+
+  .login-brand-panel {
+    padding: 22px 18px;
+  }
+
+  .login-brand-panel img {
+    height: 112px;
+    width: 112px;
+  }
+
+  .login-panel {
+    margin: 0 auto;
+    width: calc(100% - 28px);
+  }
+
+  .login-options {
+    align-items: flex-start;
+    display: grid;
   }
 
   .workspace {

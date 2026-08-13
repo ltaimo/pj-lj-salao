@@ -233,11 +233,22 @@ async function main() {
 
   for (const service of [
     { categoryId: serviceCategories.Barbearia.id, name: "Corte masculino", durationMinutes: 30, price: 500, cost: 80 },
+    { categoryId: serviceCategories.Barbearia.id, name: "Corte infantil", durationMinutes: 25, price: 350, cost: 60 },
+    { categoryId: serviceCategories.Barbearia.id, name: "Corte maquina", durationMinutes: 20, price: 300, cost: 40 },
     { categoryId: serviceCategories.Barbearia.id, name: "Barba completa", durationMinutes: 25, price: 300, cost: 40 },
+    { categoryId: serviceCategories.Barbearia.id, name: "Alinhamento de barba", durationMinutes: 15, price: 200, cost: 25 },
+    { categoryId: serviceCategories.Barbearia.id, name: "Desenho / risco", durationMinutes: 15, price: 150, cost: 20 },
+    { categoryId: serviceCategories.Barbearia.id, name: "Lavagem masculina", durationMinutes: 15, price: 200, cost: 40 },
+    { categoryId: serviceCategories.Barbearia.id, name: "Tratamento capilar masculino", durationMinutes: 45, price: 900, cost: 220 },
     { categoryId: serviceCategories.Barbearia.id, name: "Corte + Barba", durationMinutes: 50, price: 750, cost: 120 },
     { categoryId: serviceCategories.Cabeleireiro.id, name: "Lavagem", durationMinutes: 20, price: 250, cost: 50 },
     { categoryId: serviceCategories.Cabeleireiro.id, name: "Brushing", durationMinutes: 45, price: 650, cost: 100 },
+    { categoryId: serviceCategories.Cabeleireiro.id, name: "Corte feminino", durationMinutes: 45, price: 750, cost: 100 },
+    { categoryId: serviceCategories.Cabeleireiro.id, name: "Penteado", durationMinutes: 60, price: 1200, cost: 180 },
     { categoryId: serviceCategories.Cabeleireiro.id, name: "Trancas", durationMinutes: 180, price: 2500, cost: 450 },
+    { categoryId: serviceCategories.Cabeleireiro.id, name: "Extensoes", durationMinutes: 150, price: 2200, cost: 420 },
+    { categoryId: serviceCategories.Cabeleireiro.id, name: "Relaxamento", durationMinutes: 90, price: 1500, cost: 380 },
+    { categoryId: serviceCategories.Cabeleireiro.id, name: "Hidratacao profunda", durationMinutes: 60, price: 950, cost: 260 },
     { categoryId: serviceCategories.Cabeleireiro.id, name: "Coloracao", durationMinutes: 120, price: 1800, cost: 600 }
   ]) {
     await prisma.service.upsert({

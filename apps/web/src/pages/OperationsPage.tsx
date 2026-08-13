@@ -1,7 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, Check, Clock, PackagePlus, Plus, Printer, Scissors, ShoppingCart, UserPlus, Wallet } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import {
+  BadgePercent,
+  BarChart3,
+  CalendarPlus,
+  Check,
+  Clock,
+  PackagePlus,
+  Plus,
+  Printer,
+  ReceiptText,
+  Scissors,
+  ShieldCheck,
+  ShoppingCart,
+  UserPlus,
+  Users,
+  Wallet,
+  type LucideIcon
+} from "lucide-react";
+import { FormEvent, useMemo, useState, type ReactNode } from "react";
 import {
   createAppointment,
   createClient,
@@ -9,15 +25,24 @@ import {
   createQueueEntry,
   createSale,
   createService,
+  createUser,
+  listAudit,
+  listRoles,
+  listSettings,
+  listUsers,
   openCash,
   operationsBootstrap,
+  updateBusinessProfile,
   updateQueueStatus,
+  type OperationsBootstrap,
   type Product,
   type Service
 } from "../api/client";
 
+type OperationsMode = "pos" | "agenda" | "clientes" | "servicos" | "stock" | "vendas" | "fidelizacao" | "relatorios" | "admin";
+
 type OperationsPageProps = {
-  mode: "pos" | "agenda" | "clientes" | "servicos" | "stock" | "admin";
+  mode: OperationsMode;
 };
 
 type CartItem = {
@@ -37,23 +62,77 @@ const paymentMethods = [
   { value: "BANK_TRANSFER", label: "Transferencia" }
 ];
 
+const moduleCopy: Record<OperationsMode, { title: string; eyebrow: string; icon: LucideIcon }> = {
+  pos: { title: "Ponto de venda", eyebrow: "Venda rapida, recibo e stock", icon: ShoppingCart },
+  agenda: { title: "Agenda e fila", eyebrow: "Walk-in, marcacoes e atendimento", icon: Clock },
+  clientes: { title: "Clientes", eyebrow: "CRM, historico e fidelizacao", icon: Users },
+  servicos: { title: "Servicos", eyebrow: "Catalogo de barbearia e cabeleireiro", icon: Scissors },
+  stock: { title: "Stock", eyebrow: "Produtos, alertas e inventario", icon: PackagePlus },
+  vendas: { title: "Vendas", eyebrow: "Recibos, pagamentos e caixa", icon: ReceiptText },
+  fidelizacao: { title: "Fidelizacao", eyebrow: "Pontos, pacotes e vouchers", icon: BadgePercent },
+  relatorios: { title: "Relatorios", eyebrow: "Indicadores operacionais", icon: BarChart3 },
+  admin: { title: "Administracao", eyebrow: "Utilizadores, definicoes e auditoria", icon: ShieldCheck }
+};
+
 export function OperationsPage({ mode }: OperationsPageProps) {
   const queryClient = useQueryClient();
   const dataQuery = useQuery({ queryKey: ["operations"], queryFn: operationsBootstrap, retry: 1 });
   const data = dataQuery.data;
+  const copy = moduleCopy[mode];
+  const Icon = copy.icon;
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["operations"] });
+
+  if (dataQuery.isError) {
+    return (
+      <section className="content-shell auth-required">
+        <img src="/pjlj-logo.jpg" alt="PJ&LJ Salao Unissex" />
+        <h1>Sessao necessaria</h1>
+        <p>Entre para aceder aos modulos operacionais protegidos por RBAC.</p>
+        <a className="login-link" href="/login">Ir para login</a>
+      </section>
+    );
+  }
+
+  return (
+    <section className="workspace">
+      <div className="module-hero">
+        <div className="module-icon"><Icon size={24} /></div>
+        <div>
+          <p>{copy.eyebrow}</p>
+          <h1>{copy.title}</h1>
+        </div>
+        <div className="status ok">{dataQuery.isFetching ? "A sincronizar" : "Online"}</div>
+      </div>
+      {data && (
+        <>
+          {mode === "pos" && <PosPanel data={data} refresh={refresh} />}
+          {mode === "agenda" && <AttendancePanel data={data} refresh={refresh} />}
+          {mode === "clientes" && <ClientsPanel data={data} refresh={refresh} />}
+          {mode === "servicos" && <ServicesPanel data={data} refresh={refresh} />}
+          {mode === "stock" && <StockPanel data={data} refresh={refresh} />}
+          {mode === "vendas" && <SalesPanel data={data} />}
+          {mode === "fidelizacao" && <LoyaltyPanel data={data} />}
+          {mode === "relatorios" && <ReportsPanel data={data} />}
+          {mode === "admin" && <AdminPanel data={data} refresh={refresh} />}
+        </>
+      )}
+    </section>
+  );
+}
+
+function PosPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () => void }) {
+  const queryClient = useQueryClient();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedClientId, setSelectedClientId] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [message, setMessage] = useState("");
   const total = useMemo(() => cart.reduce((sum, item) => sum + item.price * item.quantity, 0), [cart]);
-
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["operations"] });
   const saleMutation = useMutation({
     mutationFn: createSale,
     onSuccess: (sale) => {
       setCart([]);
-      setMessage(`Recibo ${sale.receiptNumber} emitido com sucesso.`);
+      setMessage(`Recibo ${sale.receiptNumber} emitido. Venda fechada e stock atualizado.`);
       refresh();
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
@@ -65,10 +144,9 @@ export function OperationsPage({ mode }: OperationsPageProps) {
     const key = `${type}-${item.id}`;
     setCart((current) => {
       const existing = current.find((cartItem) => cartItem.key === key);
-      if (existing) {
-        return current.map((cartItem) => (cartItem.key === key ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
-      }
-      return [...current, { key, type, id: item.id, name: item.name, price, quantity: 1 }];
+      return existing
+        ? current.map((cartItem) => (cartItem.key === key ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem))
+        : [...current, { key, type, id: item.id, name: item.name, price, quantity: 1 }];
     });
   }
 
@@ -86,142 +164,82 @@ export function OperationsPage({ mode }: OperationsPageProps) {
     });
   }
 
-  if (dataQuery.isError) {
-    return (
-      <section className="content-shell">
-        <h1>Sessao necessaria</h1>
-        <p>Entre com o administrador para operar o sistema.</p>
-      </section>
-    );
-  }
-
   return (
-    <section className="workspace">
-      <div className="page-heading">
-        <div>
-          <p>PJ&LJ Salao Unissex</p>
-          <h1>{titleForMode(mode)}</h1>
-        </div>
-        <div className="status ok">{dataQuery.isFetching ? "A sincronizar" : "Online"}</div>
-      </div>
-
+    <>
       {message && <div className="notice strong">{message}</div>}
-
-      {mode === "pos" && data && (
-        <div className="pos-grid">
-          <section className="tool-panel catalog-panel">
-            <div className="panel-title">
-              <Scissors size={18} />
-              <h2>Servicos</h2>
-            </div>
-            <div className="tile-grid">
-              {data.services.map((service) => (
-                <button className="item-tile" key={service.id} onClick={() => addItem("SERVICE", service)}>
-                  <strong>{service.name}</strong>
-                  <span>{service.category.name}</span>
-                  <b>{money(service.price)}</b>
-                </button>
-              ))}
-            </div>
-            <div className="panel-title">
-              <PackagePlus size={18} />
-              <h2>Produtos</h2>
-            </div>
-            <div className="tile-grid">
-              {data.products.map((product) => (
-                <button className="item-tile" key={product.id} onClick={() => addItem("PRODUCT", product)} disabled={Number(product.stock) <= 0}>
-                  <strong>{product.name}</strong>
-                  <span>Stock {Number(product.stock)} {product.unit}</span>
-                  <b>{money(product.salePrice)}</b>
-                </button>
-              ))}
-            </div>
-          </section>
-          <section className="tool-panel cart-panel">
-            <div className="panel-title">
-              <ShoppingCart size={18} />
-              <h2>Venda atual</h2>
-            </div>
-            <label>
-              Cliente
-              <select value={selectedClientId} onChange={(event) => setSelectedClientId(event.target.value)}>
-                <option value="">Consumidor Final</option>
-                {data.clients.map((client) => (
-                  <option key={client.id} value={client.id}>{client.firstName} {client.lastName ?? ""}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Profissional
-              <select value={selectedEmployeeId} onChange={(event) => setSelectedEmployeeId(event.target.value)}>
-                <option value="">Sem atribuicao</option>
-                {data.staff.map((employee) => (
-                  <option key={employee.id} value={employee.id}>{employee.name} - {employee.role}</option>
-                ))}
-              </select>
-            </label>
-            <div className="cart-list">
-              {cart.length === 0 && <div className="empty-state">Toque em servicos ou produtos para vender.</div>}
-              {cart.map((item) => (
-                <div className="cart-line" key={item.key}>
-                  <span>{item.name}</span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(event) =>
-                      setCart((current) => current.map((cartItem) => (cartItem.key === item.key ? { ...cartItem, quantity: Number(event.target.value) } : cartItem)))
-                    }
-                  />
-                  <strong>{money(item.price * item.quantity)}</strong>
-                </div>
-              ))}
-            </div>
-            <label>
-              Pagamento
-              <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
-                {paymentMethods.map((method) => (
-                  <option key={method.value} value={method.value}>{method.label}</option>
-                ))}
-              </select>
-            </label>
-            <div className="total-line">
-              <span>Total</span>
-              <strong>{money(total)}</strong>
-            </div>
-            <button className="primary-action" disabled={cart.length === 0 || saleMutation.isPending} onClick={finishSale}>
-              <Printer size={18} />
-              Cobrar e emitir recibo
-            </button>
-          </section>
-        </div>
-      )}
-
-      {mode === "clientes" && data && <ClientsPanel data={data} onDone={refresh} />}
-      {mode === "agenda" && data && <AttendancePanel data={data} onDone={refresh} />}
-      {mode === "servicos" && data && <ServicesPanel data={data} onDone={refresh} />}
-      {mode === "stock" && data && <StockPanel data={data} onDone={refresh} />}
-      {mode === "admin" && data && <AdminPanel data={data} onDone={refresh} />}
-    </section>
+      <div className="pos-grid">
+        <section className="tool-panel catalog-panel">
+          <SectionTitle icon={Scissors} title="Servicos" />
+          <div className="chip-row">{unique(data.services.map((service) => service.category.name)).map((category) => <span key={category}>{category}</span>)}</div>
+          <div className="tile-grid">
+            {data.services.map((service) => (
+              <button className="item-tile service-tile" key={service.id} onClick={() => addItem("SERVICE", service)}>
+                <strong>{service.name}</strong>
+                <span>{service.category.name} · {service.durationMinutes} min</span>
+                <b>{money(service.price)}</b>
+              </button>
+            ))}
+          </div>
+          <SectionTitle icon={PackagePlus} title="Produtos" />
+          <div className="tile-grid compact">
+            {data.products.map((product) => (
+              <button className="item-tile" key={product.id} onClick={() => addItem("PRODUCT", product)} disabled={Number(product.stock) <= 0}>
+                <strong>{product.name}</strong>
+                <span>Stock {Number(product.stock)} {product.unit}</span>
+                <b>{money(product.salePrice)}</b>
+              </button>
+            ))}
+          </div>
+        </section>
+        <section className="tool-panel cart-panel sticky-panel">
+          <SectionTitle icon={ShoppingCart} title="Venda atual" />
+          <div className="form-grid one">
+            <label>Cliente<select value={selectedClientId} onChange={(event) => setSelectedClientId(event.target.value)}>
+              <option value="">Consumidor Final</option>
+              {data.clients.map((client) => <option key={client.id} value={client.id}>{client.firstName} {client.lastName ?? ""}</option>)}
+            </select></label>
+            <label>Profissional<select value={selectedEmployeeId} onChange={(event) => setSelectedEmployeeId(event.target.value)}>
+              <option value="">Sem atribuicao</option>
+              {data.staff.map((employee) => <option key={employee.id} value={employee.id}>{employee.name} - {employee.role}</option>)}
+            </select></label>
+          </div>
+          <div className="cart-list">
+            {cart.length === 0 && <div className="empty-state small">Toque num servico ou produto.</div>}
+            {cart.map((item) => (
+              <div className="cart-line" key={item.key}>
+                <span>{item.name}</span>
+                <input type="number" min="1" value={item.quantity} onChange={(event) => setCart((current) => current.map((cartItem) => cartItem.key === item.key ? { ...cartItem, quantity: Number(event.target.value) } : cartItem))} />
+                <strong>{money(item.price * item.quantity)}</strong>
+              </div>
+            ))}
+          </div>
+          <label>Pagamento<select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
+            {paymentMethods.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}
+          </select></label>
+          <div className="total-line"><span>Total</span><strong>{money(total)}</strong></div>
+          <button className="primary-action" disabled={cart.length === 0 || saleMutation.isPending} onClick={finishSale}><Printer size={18} /> Cobrar e emitir recibo</button>
+        </section>
+      </div>
+    </>
   );
 }
 
-function ClientsPanel({ data, onDone }: { data: NonNullable<ReturnType<typeof useOperationData>>; onDone: () => void }) {
-  const mutation = useMutation({ mutationFn: createClient, onSuccess: onDone });
+function ClientsPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () => void }) {
+  const mutation = useMutation({ mutationFn: createClient, onSuccess: refresh });
   return (
     <div className="split-grid">
       <FormPanel title="Novo cliente" icon={<UserPlus size={18} />} onSubmit={(values) => mutation.mutate({ firstName: values.firstName, phone: values.phone, whatsapp: values.phone, notes: values.notes })}>
-        <input name="firstName" placeholder="Nome" required />
+        <input name="firstName" placeholder="Nome do cliente" required />
         <input name="phone" placeholder="Telefone / WhatsApp" />
-        <textarea name="notes" placeholder="Observacoes" />
+        <textarea name="notes" placeholder="Preferencias, alergias, observacoes" />
       </FormPanel>
       <section className="tool-panel">
-        <h2>CRM</h2>
+        <SectionTitle icon={Users} title="CRM" />
         <div className="data-list">
           {data.clients.map((client) => (
             <article key={client.id}>
               <strong>{client.firstName} {client.lastName ?? ""}</strong>
-              <span>{client.phone ?? "Sem telefone"} · {Number(client.loyaltyPoints)} pontos · {money(client.totalSpent)}</span>
+              <span>{client.phone ?? "Sem telefone"} · {client.loyaltyPoints} pontos · {money(client.totalSpent)}</span>
             </article>
           ))}
         </div>
@@ -230,13 +248,13 @@ function ClientsPanel({ data, onDone }: { data: NonNullable<ReturnType<typeof us
   );
 }
 
-function AttendancePanel({ data, onDone }: { data: NonNullable<ReturnType<typeof useOperationData>>; onDone: () => void }) {
-  const queueMutation = useMutation({ mutationFn: createQueueEntry, onSuccess: onDone });
-  const statusMutation = useMutation({ mutationFn: ({ id, status }: { id: string; status: string }) => updateQueueStatus(id, status), onSuccess: onDone });
-  const appointmentMutation = useMutation({ mutationFn: createAppointment, onSuccess: onDone });
+function AttendancePanel({ data, refresh }: { data: OperationsBootstrap; refresh: () => void }) {
+  const queueMutation = useMutation({ mutationFn: createQueueEntry, onSuccess: refresh });
+  const statusMutation = useMutation({ mutationFn: ({ id, status }: { id: string; status: string }) => updateQueueStatus(id, status), onSuccess: refresh });
+  const appointmentMutation = useMutation({ mutationFn: createAppointment, onSuccess: refresh });
   return (
     <div className="split-grid">
-      <FormPanel title="Adicionar a fila" icon={<Clock size={18} />} onSubmit={(values) => queueMutation.mutate({ customerName: values.customerName, serviceId: values.serviceId, employeeId: values.employeeId || undefined })}>
+      <FormPanel title="Walk-in / fila" icon={<Clock size={18} />} onSubmit={(values) => queueMutation.mutate({ customerName: values.customerName, serviceId: values.serviceId, employeeId: values.employeeId || undefined })}>
         <input name="customerName" placeholder="Cliente" required />
         <Select name="serviceId" options={data.services.map((service) => [service.id, service.name])} />
         <Select name="employeeId" empty="Proximo disponivel" options={data.staff.map((employee) => [employee.id, employee.name])} />
@@ -249,7 +267,7 @@ function AttendancePanel({ data, onDone }: { data: NonNullable<ReturnType<typeof
         <Select name="employeeId" empty="Sem atribuicao" options={data.staff.map((employee) => [employee.id, employee.name])} />
       </FormPanel>
       <section className="tool-panel wide">
-        <h2>Fila ativa</h2>
+        <SectionTitle icon={Clock} title="Fila ativa" />
         <div className="queue-board">
           {data.queue.map((entry) => (
             <article key={entry.id}>
@@ -267,8 +285,8 @@ function AttendancePanel({ data, onDone }: { data: NonNullable<ReturnType<typeof
   );
 }
 
-function ServicesPanel({ data, onDone }: { data: NonNullable<ReturnType<typeof useOperationData>>; onDone: () => void }) {
-  const mutation = useMutation({ mutationFn: createService, onSuccess: onDone });
+function ServicesPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () => void }) {
+  const mutation = useMutation({ mutationFn: createService, onSuccess: refresh });
   return (
     <div className="split-grid">
       <FormPanel title="Novo servico" icon={<Scissors size={18} />} onSubmit={(values) => mutation.mutate({ name: values.name, categoryName: values.categoryName, durationMinutes: Number(values.durationMinutes), price: Number(values.price), cost: Number(values.cost || 0) })}>
@@ -279,8 +297,8 @@ function ServicesPanel({ data, onDone }: { data: NonNullable<ReturnType<typeof u
         <input name="cost" type="number" min="0" placeholder="Custo estimado" />
       </FormPanel>
       <section className="tool-panel">
-        <h2>Catalogo</h2>
-        <div className="data-list">
+        <SectionTitle icon={Scissors} title="Catalogo de servicos" />
+        <div className="data-list two-col">
           {data.services.map((service) => (
             <article key={service.id}>
               <strong>{service.name}</strong>
@@ -293,8 +311,8 @@ function ServicesPanel({ data, onDone }: { data: NonNullable<ReturnType<typeof u
   );
 }
 
-function StockPanel({ data, onDone }: { data: NonNullable<ReturnType<typeof useOperationData>>; onDone: () => void }) {
-  const mutation = useMutation({ mutationFn: createProduct, onSuccess: onDone });
+function StockPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () => void }) {
+  const mutation = useMutation({ mutationFn: createProduct, onSuccess: refresh });
   return (
     <div className="split-grid">
       <FormPanel title="Novo produto" icon={<PackagePlus size={18} />} onSubmit={(values) => mutation.mutate({ name: values.name, sku: values.sku, categoryName: values.categoryName, salePrice: Number(values.salePrice), purchasePrice: Number(values.purchasePrice || 0), stock: Number(values.stock || 0), minimumStock: Number(values.minimumStock || 0), unit: values.unit })}>
@@ -308,7 +326,7 @@ function StockPanel({ data, onDone }: { data: NonNullable<ReturnType<typeof useO
         <input name="unit" placeholder="Unidade" defaultValue="unidade" />
       </FormPanel>
       <section className="tool-panel">
-        <h2>Inventario</h2>
+        <SectionTitle icon={PackagePlus} title="Inventario" />
         <div className="data-list">
           {data.products.map((product) => (
             <article className={Number(product.stock) <= Number(product.minimumStock) ? "danger-line" : ""} key={product.id}>
@@ -322,33 +340,118 @@ function StockPanel({ data, onDone }: { data: NonNullable<ReturnType<typeof useO
   );
 }
 
-function AdminPanel({ data, onDone }: { data: NonNullable<ReturnType<typeof useOperationData>>; onDone: () => void }) {
-  const cashMutation = useMutation({ mutationFn: openCash, onSuccess: onDone });
+function SalesPanel({ data }: { data: OperationsBootstrap }) {
   return (
-    <div className="split-grid">
-      <section className="tool-panel">
-        <div className="panel-title">
-          <Wallet size={18} />
-          <h2>Caixa</h2>
+    <div className="panel-grid">
+      <MetricCard label="Recibos emitidos" value={String(data.sales.length)} icon={ReceiptText} />
+      <MetricCard label="Valor recente" value={money(data.sales.reduce((sum, sale) => sum + Number(sale.total), 0))} icon={Wallet} />
+      <section className="tool-panel wide">
+        <SectionTitle icon={ReceiptText} title="Ultimas vendas" />
+        <div className="data-list">
+          {data.sales.map((sale) => (
+            <article key={sale.id}>
+              <strong>{sale.receiptNumber}</strong>
+              <span>{money(sale.total)} · {sale.payments.map((payment) => payment.method).join(", ")} · {new Date(sale.createdAt).toLocaleString("pt-MZ")}</span>
+            </article>
+          ))}
         </div>
+      </section>
+    </div>
+  );
+}
+
+function LoyaltyPanel({ data }: { data: OperationsBootstrap }) {
+  const topClients = [...data.clients].sort((a, b) => b.loyaltyPoints - a.loyaltyPoints).slice(0, 12);
+  return (
+    <div className="panel-grid">
+      <MetricCard label="Clientes com pontos" value={String(data.clients.filter((client) => client.loyaltyPoints > 0).length)} icon={BadgePercent} />
+      <MetricCard label="Pontos totais" value={String(data.clients.reduce((sum, client) => sum + client.loyaltyPoints, 0))} icon={Users} />
+      <section className="tool-panel wide">
+        <SectionTitle icon={BadgePercent} title="Ranking de fidelizacao" />
+        <div className="data-list two-col">
+          {topClients.map((client) => (
+            <article key={client.id}>
+              <strong>{client.firstName} {client.lastName ?? ""}</strong>
+              <span>{client.loyaltyPoints} pontos · gasto acumulado {money(client.totalSpent)}</span>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ReportsPanel({ data }: { data: OperationsBootstrap }) {
+  const stockCritical = data.products.filter((product) => Number(product.stock) <= Number(product.minimumStock)).length;
+  const serviceRevenue = data.sales.flatMap((sale) => sale.items).filter((item) => item.type === "SERVICE").reduce((sum, item) => sum + Number(item.total), 0);
+  const productRevenue = data.sales.flatMap((sale) => sale.items).filter((item) => item.type === "PRODUCT").reduce((sum, item) => sum + Number(item.total), 0);
+  return (
+    <div className="panel-grid">
+      <MetricCard label="Receita servicos" value={money(serviceRevenue)} icon={Scissors} />
+      <MetricCard label="Receita produtos" value={money(productRevenue)} icon={PackagePlus} />
+      <MetricCard label="Stock critico" value={String(stockCritical)} icon={BarChart3} />
+      <section className="tool-panel wide">
+        <SectionTitle icon={BarChart3} title="Resumo operacional" />
+        <div className="report-strip">
+          <span>Clientes: <strong>{data.clients.length}</strong></span>
+          <span>Servicos: <strong>{data.services.length}</strong></span>
+          <span>Produtos: <strong>{data.products.length}</strong></span>
+          <span>Fila ativa: <strong>{data.queue.length}</strong></span>
+          <span>Marcacoes: <strong>{data.appointments.length}</strong></span>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () => void }) {
+  const users = useQuery({ queryKey: ["users"], queryFn: listUsers });
+  const roles = useQuery({ queryKey: ["roles"], queryFn: listRoles });
+  const settings = useQuery({ queryKey: ["settings"], queryFn: listSettings });
+  const audit = useQuery({ queryKey: ["audit"], queryFn: listAudit });
+  const queryClient = useQueryClient();
+  const cashMutation = useMutation({ mutationFn: openCash, onSuccess: refresh });
+  const userMutation = useMutation({ mutationFn: createUser, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }) });
+  const settingsMutation = useMutation({ mutationFn: updateBusinessProfile, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings"] }) });
+  const profile = settings.data?.find((item) => item.key === "business.profile")?.value ?? {};
+
+  return (
+    <div className="admin-grid">
+      <section className="tool-panel">
+        <SectionTitle icon={Wallet} title="Caixa e terminal" />
         <div className="receipt-preview">
           <img src="/pjlj-logo.jpg" alt="PJ&LJ Salao Unissex" />
           <strong>{data.cash ? "Caixa aberto" : "Caixa fechado"}</strong>
           <span>Saldo esperado: {money(data.cash?.expectedBalance ?? 0)}</span>
         </div>
-        <button onClick={() => cashMutation.mutate(1000)}>
-          <Plus size={18} />
-          Abrir caixa com 1.000 MT
-        </button>
+        <button onClick={() => cashMutation.mutate(1000)}><Plus size={18} /> Abrir caixa com 1.000 MT</button>
       </section>
+      <FormPanel title="Novo utilizador" icon={<UserPlus size={18} />} onSubmit={(values) => userMutation.mutate({ name: values.name, email: values.email, phone: values.phone, password: values.password, roles: [values.role] })}>
+        <input name="name" placeholder="Nome" required />
+        <input name="email" type="email" placeholder="Email" required />
+        <input name="phone" placeholder="Telefone" />
+        <input name="password" type="password" placeholder="Password temporaria" required />
+        <Select name="role" options={(roles.data ?? []).map((role) => [role.key, role.name])} />
+      </FormPanel>
+      <FormPanel title="Definicoes do negocio" icon={<ShieldCheck size={18} />} onSubmit={(values) => settingsMutation.mutate({ ...profile, phone: values.phone, whatsapp: values.whatsapp, address: values.address, receiptFormat: values.receiptFormat })}>
+        <input name="phone" placeholder="Telefone" defaultValue={String(profile.phone ?? "")} />
+        <input name="whatsapp" placeholder="WhatsApp" defaultValue={String(profile.whatsapp ?? "")} />
+        <input name="address" placeholder="Endereco" defaultValue={String(profile.address ?? "")} />
+        <select name="receiptFormat" defaultValue={String(profile.receiptFormat ?? "80mm")}><option value="58mm">58 mm</option><option value="80mm">80 mm</option><option value="A4">A4 / PDF</option></select>
+      </FormPanel>
       <section className="tool-panel">
-        <h2>Ultimos recibos</h2>
+        <SectionTitle icon={Users} title="Utilizadores" />
         <div className="data-list">
-          {data.sales.map((sale) => (
-            <article key={sale.id}>
-              <strong>{sale.receiptNumber}</strong>
-              <span>{money(sale.total)} · {new Date(sale.createdAt).toLocaleString("pt-MZ")}</span>
-            </article>
+          {(users.data ?? []).map((user) => (
+            <article key={user.id}><strong>{user.name}</strong><span>{user.email} · {user.roles.join(", ")}</span></article>
+          ))}
+        </div>
+      </section>
+      <section className="tool-panel wide">
+        <SectionTitle icon={ShieldCheck} title="Auditoria recente" />
+        <div className="data-list two-col">
+          {(audit.data ?? []).slice(0, 20).map((event) => (
+            <article key={event.id}><strong>{event.action} · {event.entity}</strong><span>{new Date(event.createdAt).toLocaleString("pt-MZ")}</span></article>
           ))}
         </div>
       </section>
@@ -366,43 +469,32 @@ function FormPanel({ title, icon, children, onSubmit }: { title: string; icon: R
   }
   return (
     <form className="tool-panel form-panel" onSubmit={handleSubmit}>
-      <div className="panel-title">
-        {icon}
-        <h2>{title}</h2>
-      </div>
-      {children}
-      <button type="submit">
-        <Check size={18} />
-        Guardar
-      </button>
+      <div className="panel-title">{icon}<h2>{title}</h2></div>
+      <div className="form-grid">{children}</div>
+      <button type="submit"><Check size={18} /> Guardar</button>
     </form>
   );
+}
+
+function SectionTitle({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
+  return <div className="panel-title"><Icon size={18} /><h2>{title}</h2></div>;
 }
 
 function Select({ name, options, empty }: { name: string; options: string[][]; empty?: string }) {
   return (
     <select name={name} required={!empty}>
       {empty && <option value="">{empty}</option>}
-      {options.map(([value, label]) => (
-        <option key={value} value={value}>{label}</option>
-      ))}
+      {options.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
     </select>
   );
 }
 
-function useOperationData() {
-  return undefined as unknown as Awaited<ReturnType<typeof operationsBootstrap>>;
+function MetricCard({ label, value, icon: Icon }: { label: string; value: string; icon: LucideIcon }) {
+  return <article className="metric-card"><Icon size={22} /><span>{label}</span><strong>{value}</strong></article>;
 }
 
-function titleForMode(mode: OperationsPageProps["mode"]) {
-  return {
-    pos: "POS",
-    agenda: "Atendimento e Agenda",
-    clientes: "Clientes",
-    servicos: "Servicos",
-    stock: "Stock",
-    admin: "Administracao"
-  }[mode];
+function unique(values: string[]) {
+  return Array.from(new Set(values));
 }
 
 function money(value: string | number) {

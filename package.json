@@ -21,6 +21,7 @@
     "db:seed": "npm --workspace @pjlj/api run prisma:seed",
     "foundation:verify": "node tests/foundation-smoke.mjs",
     "operations:verify": "node tests/operations-smoke.mjs",
+    "admin:verify": "node tests/admin-smoke.mjs",
     "deploy:vercel": "npx.cmd vercel deploy --prod --yes"
   },
   "devDependencies": {
