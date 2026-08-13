@@ -6,6 +6,7 @@ import { AuditModule } from "./audit/audit.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { HealthModule } from "./health/health.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
+import { OperationsModule } from "./operations/operations.module";
 import { PrismaService } from "./common/prisma.service";
 import { SettingsModule } from "./settings/settings.module";
 import { UsersModule } from "./users/users.module";
@@ -21,6 +22,7 @@ import { UsersModule } from "./users/users.module";
     AuthModule,
     UsersModule,
     OrganizationsModule,
+    OperationsModule,
     SettingsModule,
     AuditModule
   ],

@@ -14,6 +14,70 @@ enum UserStatus {
   INVITED
 }
 
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  ARRIVED
+  WAITING
+  IN_SERVICE
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum QueueStatus {
+  WAITING
+  CALLED
+  IN_SERVICE
+  COMPLETED
+  CANCELLED
+}
+
+enum SaleStatus {
+  DRAFT
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  VOID
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum SaleItemType {
+  SERVICE
+  PRODUCT
+  PACKAGE
+  VOUCHER
+  OTHER
+}
+
+enum PaymentMethod {
+  CASH
+  MPESA
+  EMOLA
+  CARD
+  BANK_TRANSFER
+  OTHER
+}
+
+enum StockMovementType {
+  OPENING
+  PURCHASE
+  SALE
+  SERVICE_CONSUMPTION
+  LOSS
+  DAMAGE
+  GIFT
+  ADJUSTMENT
+  RETURN
+  TRANSFER
+}
+
+enum CashSessionStatus {
+  OPEN
+  CLOSED
+}
+
 model Organization {
   id        String   @id @default(uuid())
   name      String
@@ -32,6 +96,18 @@ model Organization {
   users     User[]
   settings  Setting[]
   auditLogs AuditLog[]
+  clients   Client[]
+  employees Employee[]
+  serviceCategories ServiceCategory[]
+  services  Service[]
+  productCategories ProductCategory[]
+  products  Product[]
+  queueEntries QueueEntry[]
+  appointments Appointment[]
+  sales     Sale[]
+  payments  Payment[]
+  cashSessions CashSession[]
+  stockMovements StockMovement[]
 
   @@map("organizations")
 }
@@ -51,6 +127,18 @@ model Branch {
   users        User[]
   settings     Setting[]
   auditLogs    AuditLog[]
+  clients      Client[]
+  employees    Employee[]
+  serviceCategories ServiceCategory[]
+  services     Service[]
+  productCategories ProductCategory[]
+  products     Product[]
+  queueEntries QueueEntry[]
+  appointments Appointment[]
+  sales        Sale[]
+  payments     Payment[]
+  cashSessions CashSession[]
+  stockMovements StockMovement[]
 
   @@unique([organizationId, code])
   @@map("branches")
@@ -164,4 +252,320 @@ model AuditLog {
   @@index([organizationId, branchId, createdAt])
   @@index([entity, entityId])
   @@map("audit_logs")
+}
+
+model Client {
+  id             String   @id @default(uuid())
+  organizationId String
+  branchId       String
+  code           String
+  firstName      String
+  lastName       String?
+  phone          String?
+  whatsapp       String?
+  email          String?
+  birthDate      DateTime?
+  gender         String?
+  source         String?
+  notes          String?
+  visits         Int      @default(0)
+  totalSpent     Decimal  @default(0) @db.Decimal(12, 2)
+  loyaltyPoints  Int      @default(0)
+  lastVisitAt    DateTime?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  branch       Branch       @relation(fields: [branchId], references: [id])
+  queueEntries QueueEntry[]
+  appointments Appointment[]
+  sales        Sale[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, branchId, phone])
+  @@map("clients")
+}
+
+model Employee {
+  id             String   @id @default(uuid())
+  organizationId String
+  branchId       String
+  code           String
+  name           String
+  phone          String?
+  email          String?
+  role           String
+  specialty      String?
+  commissionRate Decimal  @default(0) @db.Decimal(5, 2)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  branch       Branch       @relation(fields: [branchId], references: [id])
+  queueEntries QueueEntry[]
+  appointments Appointment[]
+  saleItems    SaleItem[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, branchId, active])
+  @@map("employees")
+}
+
+model ServiceCategory {
+  id             String   @id @default(uuid())
+  organizationId String
+  branchId       String?
+  name           String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  branch       Branch?      @relation(fields: [branchId], references: [id])
+  services     Service[]
+
+  @@unique([organizationId, name])
+  @@map("service_categories")
+}
+
+model Service {
+  id              String   @id @default(uuid())
+  organizationId  String
+  branchId        String?
+  categoryId      String
+  name            String
+  description     String?
+  durationMinutes Int
+  price           Decimal  @db.Decimal(12, 2)
+  cost            Decimal  @default(0) @db.Decimal(12, 2)
+  tax             Decimal  @default(0) @db.Decimal(5, 2)
+  requiresBooking Boolean  @default(false)
+  allowWalkIn     Boolean  @default(true)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  branch       Branch?         @relation(fields: [branchId], references: [id])
+  category     ServiceCategory @relation(fields: [categoryId], references: [id])
+  queueEntries QueueEntry[]
+  appointments Appointment[]
+  saleItems    SaleItem[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, branchId, active])
+  @@map("services")
+}
+
+model ProductCategory {
+  id             String   @id @default(uuid())
+  organizationId String
+  branchId       String?
+  name           String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  branch       Branch?      @relation(fields: [branchId], references: [id])
+  products     Product[]
+
+  @@unique([organizationId, name])
+  @@map("product_categories")
+}
+
+model Product {
+  id             String   @id @default(uuid())
+  organizationId String
+  branchId       String
+  categoryId     String?
+  sku            String
+  barcode        String?
+  name           String
+  brand          String?
+  description    String?
+  purchasePrice  Decimal  @default(0) @db.Decimal(12, 2)
+  salePrice      Decimal  @db.Decimal(12, 2)
+  stock          Decimal  @default(0) @db.Decimal(12, 3)
+  minimumStock   Decimal  @default(0) @db.Decimal(12, 3)
+  unit           String   @default("unidade")
+  supplier       String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  branch         Branch           @relation(fields: [branchId], references: [id])
+  category       ProductCategory? @relation(fields: [categoryId], references: [id])
+  saleItems      SaleItem[]
+  stockMovements StockMovement[]
+
+  @@unique([organizationId, sku])
+  @@index([organizationId, branchId, active])
+  @@map("products")
+}
+
+model StockMovement {
+  id             String            @id @default(uuid())
+  organizationId String
+  branchId       String
+  productId      String
+  type           StockMovementType
+  quantity       Decimal           @db.Decimal(12, 3)
+  beforeQuantity Decimal           @db.Decimal(12, 3)
+  afterQuantity  Decimal           @db.Decimal(12, 3)
+  reason         String?
+  reference      String?
+  userId         String?
+  createdAt      DateTime          @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  branch       Branch       @relation(fields: [branchId], references: [id])
+  product      Product      @relation(fields: [productId], references: [id])
+
+  @@index([organizationId, branchId, createdAt])
+  @@map("stock_movements")
+}
+
+model QueueEntry {
+  id             String      @id @default(uuid())
+  organizationId String
+  branchId       String
+  clientId       String?
+  serviceId      String
+  employeeId     String?
+  customerName   String
+  priority       Int         @default(0)
+  status         QueueStatus @default(WAITING)
+  arrivedAt      DateTime    @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+  notes          String?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  branch       Branch       @relation(fields: [branchId], references: [id])
+  client       Client?      @relation(fields: [clientId], references: [id])
+  service      Service      @relation(fields: [serviceId], references: [id])
+  employee     Employee?    @relation(fields: [employeeId], references: [id])
+
+  @@index([organizationId, branchId, status, arrivedAt])
+  @@map("queue_entries")
+}
+
+model Appointment {
+  id             String            @id @default(uuid())
+  organizationId String
+  branchId       String
+  clientId       String?
+  serviceId      String
+  employeeId     String?
+  customerName   String
+  startsAt       DateTime
+  durationMinutes Int
+  status         AppointmentStatus @default(SCHEDULED)
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  branch       Branch       @relation(fields: [branchId], references: [id])
+  client       Client?      @relation(fields: [clientId], references: [id])
+  service      Service      @relation(fields: [serviceId], references: [id])
+  employee     Employee?    @relation(fields: [employeeId], references: [id])
+
+  @@index([organizationId, branchId, startsAt])
+  @@map("appointments")
+}
+
+model Sale {
+  id             String     @id @default(uuid())
+  organizationId String
+  branchId       String
+  clientId       String?
+  receiptNumber  String     @unique
+  status         SaleStatus @default(PAID)
+  subtotal       Decimal    @db.Decimal(12, 2)
+  discount       Decimal    @default(0) @db.Decimal(12, 2)
+  tipAmount      Decimal    @default(0) @db.Decimal(12, 2)
+  total          Decimal    @db.Decimal(12, 2)
+  paidAmount     Decimal    @db.Decimal(12, 2)
+  changeAmount   Decimal    @default(0) @db.Decimal(12, 2)
+  note           String?
+  createdById    String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  branch       Branch       @relation(fields: [branchId], references: [id])
+  client       Client?      @relation(fields: [clientId], references: [id])
+  items        SaleItem[]
+  payments     Payment[]
+
+  @@index([organizationId, branchId, createdAt])
+  @@map("sales")
+}
+
+model SaleItem {
+  id          String       @id @default(uuid())
+  saleId      String
+  type        SaleItemType
+  serviceId   String?
+  productId   String?
+  employeeId  String?
+  description String
+  unitPrice   Decimal      @db.Decimal(12, 2)
+  quantity    Decimal      @db.Decimal(12, 3)
+  discount    Decimal      @default(0) @db.Decimal(12, 2)
+  total       Decimal      @db.Decimal(12, 2)
+
+  sale     Sale      @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  service  Service?  @relation(fields: [serviceId], references: [id])
+  product  Product?  @relation(fields: [productId], references: [id])
+  employee Employee? @relation(fields: [employeeId], references: [id])
+
+  @@index([saleId])
+  @@map("sale_items")
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  organizationId String
+  branchId       String
+  saleId         String
+  method         PaymentMethod
+  amount         Decimal       @db.Decimal(12, 2)
+  reference      String?
+  createdAt      DateTime      @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  branch       Branch       @relation(fields: [branchId], references: [id])
+  sale         Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, branchId, createdAt])
+  @@map("payments")
+}
+
+model CashSession {
+  id             String            @id @default(uuid())
+  organizationId String
+  branchId       String
+  openedById     String?
+  closedById     String?
+  terminal       String            @default("MAIN")
+  status         CashSessionStatus @default(OPEN)
+  openingBalance Decimal           @default(0) @db.Decimal(12, 2)
+  expectedBalance Decimal          @default(0) @db.Decimal(12, 2)
+  countedBalance Decimal?          @db.Decimal(12, 2)
+  difference     Decimal?          @db.Decimal(12, 2)
+  openedAt       DateTime          @default(now())
+  closedAt       DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  branch       Branch       @relation(fields: [branchId], references: [id])
+
+  @@index([organizationId, branchId, status])
+  @@map("cash_sessions")
 }

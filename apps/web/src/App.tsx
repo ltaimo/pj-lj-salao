@@ -1,7 +1,8 @@
-import { CalendarDays, Home, LayoutDashboard, Menu, PackageSearch, Scissors, Settings, ShoppingCart, Users } from "lucide-react";
+import { CalendarDays, LayoutDashboard, Menu, PackageSearch, Scissors, Settings, ShoppingCart, Users } from "lucide-react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
+import { OperationsPage } from "./pages/OperationsPage";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -13,20 +14,12 @@ const navItems = [
   { to: "/admin", label: "Admin", icon: Settings }
 ];
 
-function Placeholder({ title }: { title: string }) {
-  return (
-    <section className="content-shell">
-      <h1>{title}</h1>
-      <p>Modulo preparado na fundacao. A implementacao end-to-end entra nas proximas etapas do roadmap.</p>
-    </section>
-  );
-}
-
 export function App() {
   return (
     <div className="app-frame">
       <aside className="sidebar">
         <div className="brand">
+          <img src="/pjlj-logo.jpg" alt="PJ&LJ Salao Unissex" />
           <span>PJ&LJ</span>
           <small>Salon Manager</small>
         </div>
@@ -50,12 +43,12 @@ export function App() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/pos" element={<Placeholder title="POS" />} />
-          <Route path="/agenda" element={<Placeholder title="Agenda" />} />
-          <Route path="/clientes" element={<Placeholder title="Clientes" />} />
-          <Route path="/servicos" element={<Placeholder title="Servicos" />} />
-          <Route path="/stock" element={<Placeholder title="Stock" />} />
-          <Route path="/admin" element={<Placeholder title="Administracao" />} />
+          <Route path="/pos" element={<OperationsPage mode="pos" />} />
+          <Route path="/agenda" element={<OperationsPage mode="agenda" />} />
+          <Route path="/clientes" element={<OperationsPage mode="clientes" />} />
+          <Route path="/servicos" element={<OperationsPage mode="servicos" />} />
+          <Route path="/stock" element={<OperationsPage mode="stock" />} />
+          <Route path="/admin" element={<OperationsPage mode="admin" />} />
         </Routes>
       </main>
       <nav className="bottom-nav">

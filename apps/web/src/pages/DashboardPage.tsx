@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Banknote, BriefcaseBusiness, Clock, Scissors, Users } from "lucide-react";
+import { AlertTriangle, Banknote, BriefcaseBusiness, Clock, Scissors, Users, Wallet } from "lucide-react";
 import { dashboardSummary, health } from "../api/client";
 
 export function DashboardPage() {
@@ -7,7 +7,7 @@ export function DashboardPage() {
   const summary = useQuery({ queryKey: ["dashboard-summary"], queryFn: dashboardSummary, retry: 1 });
   const data = summary.data;
   const metrics = [
-    { label: "Vendas do dia", value: `${data?.metrics.dailySales ?? "-"} ${data?.currency ?? "MT"}`, icon: Banknote },
+    { label: "Vendas do dia", value: `${Number(data?.metrics.dailySales ?? 0).toLocaleString("pt-MZ")} ${data?.currency ?? "MT"}`, icon: Banknote },
     { label: "Servicos realizados", value: String(data?.metrics.servicesCompleted ?? "-"), icon: Scissors },
     { label: "Clientes atendidos", value: String(data?.metrics.clientsServed ?? "-"), icon: Users },
     { label: "Clientes em espera", value: String(data?.metrics.waitingClients ?? "-"), icon: Clock },
@@ -53,7 +53,13 @@ export function DashboardPage() {
         </section>
         <section>
           <h2>Caixa</h2>
-          <div className="empty-state">Nenhuma sessao aberta.</div>
+          <div className="foundation-stats">
+            <Wallet size={22} />
+            <span>Saldo esperado: {Number(data?.metrics.cashExpected ?? 0).toLocaleString("pt-MZ")} MT</span>
+            {(data?.paymentsByMethod ?? []).map((payment) => (
+              <span key={payment.method}>{payment.method}: {Number(payment.amount).toLocaleString("pt-MZ")} MT</span>
+            ))}
+          </div>
         </section>
         <section>
           <h2>Fundacao</h2>
