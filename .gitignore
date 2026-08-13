@@ -18,3 +18,5 @@ sky-apps.json
 .turbo
 apps/api/prisma/dev.db
 apps/api/prisma/dev.db-journal
+
+.vercel
