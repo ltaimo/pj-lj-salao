@@ -32,15 +32,13 @@ async function main() {
     }
   });
 
-  await Promise.all(
-    PERMISSIONS.map((permission) =>
-      prisma.permission.upsert({
-        where: { key: permission },
-        update: {},
-        create: { key: permission, description: permission }
-      })
-    )
-  );
+  for (const permission of PERMISSIONS) {
+    await prisma.permission.upsert({
+      where: { key: permission },
+      update: {},
+      create: { key: permission, description: permission }
+    });
+  }
 
   const adminRole = await prisma.role.upsert({
     where: { key: "super_admin" },
@@ -54,23 +52,21 @@ async function main() {
   });
 
   const permissions = await prisma.permission.findMany();
-  await Promise.all(
-    permissions.map((permission) =>
-      prisma.rolePermission.upsert({
-        where: {
-          roleId_permissionId: {
-            roleId: adminRole.id,
-            permissionId: permission.id
-          }
-        },
-        update: {},
-        create: {
+  for (const permission of permissions) {
+    await prisma.rolePermission.upsert({
+      where: {
+        roleId_permissionId: {
           roleId: adminRole.id,
           permissionId: permission.id
         }
-      })
-    )
-  );
+      },
+      update: {},
+      create: {
+        roleId: adminRole.id,
+        permissionId: permission.id
+      }
+    });
+  }
 
   const email = process.env.SEED_ADMIN_EMAIL ?? "admin@pjlj.local";
   const password = process.env.SEED_ADMIN_PASSWORD ?? "change-me-before-production";

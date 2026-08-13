@@ -6,6 +6,13 @@ coverage
 .env.*.local
 *.log
 *.tsbuildinfo
+chrome-*.png
+chrome-*.txt
+supabase-*.png
+supabase-*.txt
+front-chrome.png
+pjlj-projects.png
+sky-apps.json
 .DS_Store
 .turbo
 apps/api/prisma/dev.db

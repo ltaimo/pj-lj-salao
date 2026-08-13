@@ -10,19 +10,19 @@ In Supabase, open:
 Project Settings -> Database -> Connection string
 ```
 
-Use the pooled connection for runtime:
+Use the session pooler connection for runtime and migrations on this Windows workspace:
 
 ```text
-DATABASE_URL=postgresql://postgres.PROJECT_REF:PASSWORD@aws-...pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&schema=public
+DATABASE_URL=postgresql://postgres.PROJECT_REF:PASSWORD@aws-1-eu-west-1.pooler.supabase.com:5432/postgres?schema=public&sslmode=require&connection_limit=1
 ```
 
-Use the direct connection for Prisma migrations:
+Use the same value for Prisma migrations when direct database access is blocked:
 
 ```text
-DIRECT_URL=postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres?schema=public
+DIRECT_URL=postgresql://postgres.PROJECT_REF:PASSWORD@aws-1-eu-west-1.pooler.supabase.com:5432/postgres?schema=public&sslmode=require&connection_limit=1
 ```
 
-Both values are needed because Supabase poolers are good for app runtime, while migrations need a direct database connection.
+Direct database host `db.PROJECT_REF.supabase.co:5432` may be unreachable from some networks. The session pooler avoids that problem and works with the Prisma migration engine.
 
 ## First Database Setup
 

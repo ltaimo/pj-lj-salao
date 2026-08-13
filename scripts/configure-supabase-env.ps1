@@ -5,7 +5,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$DatabasePassword,
 
-    [string]$RegionHost = "aws-0-us-east-1.pooler.supabase.com"
+    [string]$RegionHost = "aws-1-eu-west-1.pooler.supabase.com"
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,8 +17,8 @@ if (-not (Test-Path $envPath)) {
     Copy-Item (Join-Path $root ".env.example") $envPath
 }
 
-$databaseUrl = "postgresql://postgres.$ProjectRef:$DatabasePassword@$RegionHost:6543/postgres?pgbouncer=true&connection_limit=1&schema=public"
-$directUrl = "postgresql://postgres:$DatabasePassword@db.$ProjectRef.supabase.co:5432/postgres?schema=public"
+$databaseUrl = "postgresql://postgres.$ProjectRef:$DatabasePassword@$RegionHost:5432/postgres?schema=public&sslmode=require&connection_limit=1"
+$directUrl = $databaseUrl
 
 $values = [ordered]@{
     NODE_ENV = "development"
@@ -38,4 +38,4 @@ $content = $values.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }
 Set-Content -LiteralPath $envPath -Value $content -Encoding UTF8
 
 Write-Host ".env configured for Supabase project $ProjectRef" -ForegroundColor Green
-Write-Host "DATABASE_URL uses the pooled connection; DIRECT_URL uses the direct migration connection."
+Write-Host "DATABASE_URL and DIRECT_URL use the Supabase session pooler with connection_limit=1."
