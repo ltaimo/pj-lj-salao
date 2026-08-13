@@ -14,6 +14,7 @@
     "build": "npm --workspaces run build",
     "test": "npm --workspaces --if-present run test",
     "lint": "npm --workspaces --if-present run lint",
+    "postinstall": "npm run db:generate",
     "db:generate": "npm --workspace @pjlj/api run prisma:generate",
     "db:migrate": "npm --workspace @pjlj/api run prisma:migrate",
     "db:deploy": "npm --workspace @pjlj/api run prisma:deploy",
