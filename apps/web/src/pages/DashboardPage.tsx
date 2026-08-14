@@ -8,22 +8,22 @@ export function DashboardPage() {
   const data = summary.data;
   const metrics = [
     { label: "Vendas do dia", value: `${Number(data?.metrics.dailySales ?? 0).toLocaleString("pt-MZ")} ${data?.currency ?? "MT"}`, icon: Banknote },
-    { label: "Servicos realizados", value: String(data?.metrics.servicesCompleted ?? "-"), icon: Scissors },
+    { label: "Serviços realizados", value: String(data?.metrics.servicesCompleted ?? "-"), icon: Scissors },
     { label: "Clientes atendidos", value: String(data?.metrics.clientsServed ?? "-"), icon: Users },
     { label: "Clientes em espera", value: String(data?.metrics.waitingClients ?? "-"), icon: Clock },
     {
-      label: "Profissionais disponiveis",
+      label: "Profissionais disponíveis",
       value: String(data?.metrics.availableProfessionals ?? "-"),
       icon: BriefcaseBusiness
     },
-    { label: "Stock critico", value: String(data?.metrics.criticalStock ?? "-"), icon: AlertTriangle }
+    { label: "Stock crítico", value: String(data?.metrics.criticalStock ?? "-"), icon: AlertTriangle }
   ];
 
   return (
     <section className="dashboard">
       <div className="page-heading">
         <div>
-          <p>Operacao principal</p>
+          <p>Operação principal</p>
           <h1>Dashboard</h1>
         </div>
         <div className={apiHealth.isSuccess ? "status ok" : "status"}>
@@ -40,7 +40,7 @@ export function DashboardPage() {
         ))}
       </div>
       {summary.isError && (
-        <div className="notice">Inicie sessao para carregar os indicadores operacionais protegidos por RBAC.</div>
+        <div className="notice">Inicie sessão para carregar os indicadores operacionais protegidos por RBAC.</div>
       )}
       <div className="operations-grid">
         <section>
@@ -48,8 +48,8 @@ export function DashboardPage() {
           <div className="empty-state">Sem clientes em espera.</div>
         </section>
         <section>
-          <h2>Marcacoes de hoje</h2>
-          <div className="empty-state">Nenhuma marcacao pendente.</div>
+          <h2>Marcações de hoje</h2>
+          <div className="empty-state">Nenhuma marcação pendente.</div>
         </section>
         <section>
           <h2>Caixa</h2>
@@ -62,7 +62,7 @@ export function DashboardPage() {
           </div>
         </section>
         <section>
-          <h2>Fundacao</h2>
+          <h2>Fundação</h2>
           <div className="foundation-stats">
             <span>Utilizadores ativos: {data?.metrics.activeUsers ?? "-"}</span>
             <span>Filiais ativas: {data?.metrics.activeBranches ?? "-"}</span>

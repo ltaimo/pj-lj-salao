@@ -26,7 +26,7 @@ async function bootstrap() {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("PJ&LJ Salon Manager API")
-    .setDescription("API-first foundation for PJ&LJ Salao Unissex")
+    .setDescription("API-first foundation for PJ&LJ Salão Unissex")
     .setVersion("0.1.0")
     .addBearerAuth()
     .build();

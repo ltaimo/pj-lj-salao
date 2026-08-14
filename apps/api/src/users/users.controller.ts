@@ -57,7 +57,7 @@ export class UsersController {
     const name = body.name?.trim();
     const email = body.email?.trim().toLowerCase();
     if (!name || !email || !body.password || body.password.length < 8) {
-      throw new BadRequestException("Nome, email e password com minimo de 8 caracteres sao obrigatorios");
+      throw new BadRequestException("Nome, email e palavra-passe com mínimo de 8 caracteres são obrigatórios");
     }
     const passwordHash = await argon2.hash(body.password);
     const roles = await this.prisma.role.findMany({

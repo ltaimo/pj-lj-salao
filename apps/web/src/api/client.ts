@@ -18,7 +18,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
   });
 
   if (!response.ok) {
-    throw new Error("Credenciais invalidas");
+    throw new Error("Credenciais inválidas");
   }
 
   return response.json();
@@ -27,7 +27,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
 export async function health() {
   const response = await fetch(`${API_BASE_URL}/health`);
   if (!response.ok) {
-    throw new Error("API indisponivel");
+    throw new Error("API indisponível");
   }
   return response.json();
 }
@@ -173,10 +173,37 @@ export type OperationsBootstrap = {
   settings?: unknown;
 };
 
+const ACCESS_TOKEN_KEY = "pjlj.accessToken";
+const REFRESH_TOKEN_KEY = "pjlj.refreshToken";
+
+export function getAccessToken() {
+  return localStorage.getItem(ACCESS_TOKEN_KEY) ?? sessionStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+export function hasSession() {
+  return Boolean(getAccessToken());
+}
+
+export function setSession(tokens: LoginResponse, remember: boolean) {
+  const targetStorage = remember ? localStorage : sessionStorage;
+  const staleStorage = remember ? sessionStorage : localStorage;
+  staleStorage.removeItem(ACCESS_TOKEN_KEY);
+  staleStorage.removeItem(REFRESH_TOKEN_KEY);
+  targetStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
+  targetStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+}
+
+export function clearSession() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+  sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
 function authHeaders() {
-  const token = localStorage.getItem("pjlj.accessToken");
+  const token = getAccessToken();
   if (!token) {
-    throw new Error("Sessao necessaria");
+    throw new Error("Sessão necessária");
   }
   return { Authorization: `Bearer ${token}` };
 }
@@ -190,7 +217,7 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Pedido indisponivel");
+    throw new Error(message || "Pedido indisponível");
   }
   return response.json();
 }
@@ -200,7 +227,7 @@ export async function dashboardSummary(): Promise<DashboardSummary> {
     headers: authHeaders()
   });
   if (!response.ok) {
-    throw new Error("Dashboard indisponivel");
+    throw new Error("Dashboard indisponível");
   }
   return response.json();
 }

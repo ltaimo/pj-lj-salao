@@ -9,16 +9,18 @@ import {
   Settings,
   ShoppingCart,
   Users,
-  WalletCards
+  WalletCards,
+  LogOut
 } from "lucide-react";
-import { NavLink, Route, Routes } from "react-router-dom";
+import { Navigate, NavLink, Route, Routes, useNavigate } from "react-router-dom";
+import { clearSession, hasSession } from "./api/client";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { OperationsPage } from "./pages/OperationsPage";
 
 const moduleGroups = [
   {
-    title: "Operacao",
+    title: "Operação",
     items: [
       { to: "/", label: "Dashboard", icon: LayoutDashboard },
       { to: "/pos", label: "POS", icon: ShoppingCart },
@@ -29,17 +31,17 @@ const moduleGroups = [
     title: "Comercial",
     items: [
       { to: "/clientes", label: "Clientes", icon: Users },
-      { to: "/servicos", label: "Servicos", icon: Scissors },
+      { to: "/servicos", label: "Serviços", icon: Scissors },
       { to: "/stock", label: "Stock", icon: PackageSearch },
       { to: "/vendas", label: "Vendas", icon: WalletCards },
-      { to: "/fidelizacao", label: "Fidelizacao", icon: Percent }
+      { to: "/fidelizacao", label: "Fidelização", icon: Percent }
     ]
   },
   {
-    title: "Gestao",
+    title: "Gestão",
     items: [
-      { to: "/relatorios", label: "Relatorios", icon: BarChart3 },
-      { to: "/admin", label: "Administracao", icon: Settings }
+      { to: "/relatorios", label: "Relatórios", icon: BarChart3 },
+      { to: "/admin", label: "Administração", icon: Settings }
     ]
   }
 ];
@@ -53,11 +55,27 @@ const mobileItems = [
 ];
 
 export function App() {
+  const navigate = useNavigate();
+  const authenticated = hasSession();
+
+  function logout() {
+    clearSession();
+    navigate("/login", { replace: true });
+  }
+
+  if (!authenticated) {
+    return (
+      <Routes>
+        <Route path="*" element={<LoginPage />} />
+      </Routes>
+    );
+  }
+
   return (
     <div className="app-frame">
       <aside className="sidebar">
         <div className="brand">
-          <img src="/pjlj-logo.jpg" alt="PJ&LJ Salao Unissex" />
+          <img src="/pjlj-logo.jpg" alt="PJ&LJ Salão Unissex" />
           <span>PJ&LJ</span>
           <small>Salon Manager</small>
         </div>
@@ -78,14 +96,14 @@ export function App() {
       <main>
         <header className="topbar">
           <div>
-            <strong>PJ&LJ Salao Unissex</strong>
-            <span>Operacao · Caixa · CRM · Stock · Fidelizacao</span>
+            <strong>PJ&LJ Salão Unissex</strong>
+            <span>Operação · Caixa · CRM · Stock · Fidelização</span>
           </div>
-          <a className="login-link" href="/login">Entrar</a>
+          <button className="login-link" type="button" onClick={logout}><LogOut size={18} /> Sair</button>
         </header>
         <Routes>
+          <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="/" element={<DashboardPage />} />
-          <Route path="/login" element={<LoginPage />} />
           <Route path="/pos" element={<OperationsPage mode="pos" />} />
           <Route path="/agenda" element={<OperationsPage mode="agenda" />} />
           <Route path="/clientes" element={<OperationsPage mode="clientes" />} />

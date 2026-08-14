@@ -116,10 +116,10 @@ export class OperationsService {
         organizationId: scope.organizationId,
         branchId: scope.branchId,
         categoryId: category.id,
-        name: this.requiredString(payload.name, "Servico"),
+        name: this.requiredString(payload.name, "Serviço"),
         description: this.optionalString(payload.description),
-        durationMinutes: this.positiveInt(payload.durationMinutes ?? 30, "Duracao"),
-        price: this.money(payload.price, "Preco"),
+        durationMinutes: this.positiveInt(payload.durationMinutes ?? 30, "Duração"),
+        price: this.money(payload.price, "Preço"),
         cost: this.money(payload.cost ?? 0, "Custo"),
         requiresBooking: Boolean(payload.requiresBooking ?? false),
         allowWalkIn: payload.allowWalkIn === undefined ? true : Boolean(payload.allowWalkIn)
@@ -159,10 +159,10 @@ export class OperationsService {
           barcode: this.optionalString(payload.barcode),
           name: this.requiredString(payload.name, "Produto"),
           brand: this.optionalString(payload.brand),
-          purchasePrice: this.money(payload.purchasePrice ?? 0, "Preco de compra"),
-          salePrice: this.money(payload.salePrice, "Preco de venda"),
+          purchasePrice: this.money(payload.purchasePrice ?? 0, "Preço de compra"),
+          salePrice: this.money(payload.salePrice, "Preço de venda"),
           stock,
-          minimumStock: this.quantity(payload.minimumStock ?? 0, "Stock minimo"),
+          minimumStock: this.quantity(payload.minimumStock ?? 0, "Stock mínimo"),
           unit: this.optionalString(payload.unit) ?? "unidade",
           supplier: this.optionalString(payload.supplier)
         },
@@ -212,7 +212,7 @@ export class OperationsService {
       data: {
         ...scope,
         clientId: this.optionalString(payload.clientId),
-        serviceId: this.requiredString(payload.serviceId, "Servico"),
+        serviceId: this.requiredString(payload.serviceId, "Serviço"),
         employeeId: this.optionalString(payload.employeeId),
         customerName: this.requiredString(payload.customerName, "Cliente"),
         priority: Number(payload.priority ?? 0),
@@ -229,10 +229,10 @@ export class OperationsService {
     const payload = body as Record<string, unknown>;
     const status = this.requiredString(payload.status, "Estado") as QueueStatus;
     if (!["WAITING", "CALLED", "IN_SERVICE", "COMPLETED", "CANCELLED"].includes(status)) {
-      throw new BadRequestException("Estado da fila invalido");
+      throw new BadRequestException("Estado da fila inválido");
     }
     const before = await this.prisma.queueEntry.findFirst({ where: { id, organizationId: scope.organizationId, branchId: scope.branchId } });
-    if (!before) throw new NotFoundException("Entrada de fila nao encontrada");
+    if (!before) throw new NotFoundException("Entrada de fila não encontrada");
     const entry = await this.prisma.queueEntry.update({
       where: { id },
       data: {
@@ -260,16 +260,16 @@ export class OperationsService {
     const scope = this.scope(user);
     const payload = body as Record<string, unknown>;
     const startsAt = new Date(this.requiredString(payload.startsAt, "Data e hora"));
-    if (Number.isNaN(startsAt.getTime())) throw new BadRequestException("Data de marcacao invalida");
+    if (Number.isNaN(startsAt.getTime())) throw new BadRequestException("Data de marcação inválida");
     const appointment = await this.prisma.appointment.create({
       data: {
         ...scope,
         clientId: this.optionalString(payload.clientId),
-        serviceId: this.requiredString(payload.serviceId, "Servico"),
+        serviceId: this.requiredString(payload.serviceId, "Serviço"),
         employeeId: this.optionalString(payload.employeeId),
         customerName: this.requiredString(payload.customerName, "Cliente"),
         startsAt,
-        durationMinutes: this.positiveInt(payload.durationMinutes ?? 30, "Duracao"),
+        durationMinutes: this.positiveInt(payload.durationMinutes ?? 30, "Duração"),
         status: (this.optionalString(payload.status) as AppointmentStatus | undefined) ?? "SCHEDULED",
         notes: this.optionalString(payload.notes)
       },
@@ -336,7 +336,7 @@ export class OperationsService {
         const itemDiscount = this.money(item.discount ?? 0, "Desconto do item");
         if (item.type === "SERVICE") {
           const service = await tx.service.findFirst({ where: { id: item.serviceId, organizationId: scope.organizationId, active: true } });
-          if (!service) throw new BadRequestException("Servico invalido");
+          if (!service) throw new BadRequestException("Serviço inválido");
           const unitPrice = Number(service.price);
           const total = unitPrice * quantity - itemDiscount;
           subtotal += total;
@@ -352,7 +352,7 @@ export class OperationsService {
           });
         } else if (item.type === "PRODUCT") {
           const product = await tx.product.findFirst({ where: { id: item.productId, organizationId: scope.organizationId, branchId: scope.branchId, active: true } });
-          if (!product) throw new BadRequestException("Produto invalido");
+          if (!product) throw new BadRequestException("Produto inválido");
           const beforeStock = Number(product.stock);
           if (beforeStock < quantity) throw new BadRequestException(`Stock insuficiente para ${product.name}`);
           const unitPrice = Number(product.salePrice);
@@ -384,7 +384,7 @@ export class OperationsService {
             total
           });
         } else {
-          const unitPrice = this.money(item.unitPrice ?? 0, "Preco");
+          const unitPrice = this.money(item.unitPrice ?? 0, "Preço");
           const total = unitPrice * quantity - itemDiscount;
           subtotal += total;
           items.push({
@@ -493,19 +493,19 @@ export class OperationsService {
 
   private money(value: unknown, field: string) {
     const number = Number(value);
-    if (!Number.isFinite(number) || number < 0) throw new BadRequestException(`${field} invalido`);
+    if (!Number.isFinite(number) || number < 0) throw new BadRequestException(`${field} inválido`);
     return Math.round(number * 100) / 100;
   }
 
   private quantity(value: unknown, field: string) {
     const number = Number(value);
-    if (!Number.isFinite(number) || number < 0) throw new BadRequestException(`${field} invalida`);
+    if (!Number.isFinite(number) || number < 0) throw new BadRequestException(`${field} inválida`);
     return Math.round(number * 1000) / 1000;
   }
 
   private positiveInt(value: unknown, field: string) {
     const number = Number(value);
-    if (!Number.isInteger(number) || number <= 0) throw new BadRequestException(`${field} invalida`);
+    if (!Number.isInteger(number) || number <= 0) throw new BadRequestException(`${field} inválida`);
     return number;
   }
 }

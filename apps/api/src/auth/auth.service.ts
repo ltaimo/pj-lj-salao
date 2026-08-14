@@ -16,12 +16,12 @@ export class AuthService {
   async login(dto: LoginDto, ip?: string) {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (!user || user.status !== "ACTIVE") {
-      throw new UnauthorizedException("Invalid credentials");
+      throw new UnauthorizedException("Credenciais inválidas");
     }
 
     const passwordOk = await argon2.verify(user.passwordHash, dto.password);
     if (!passwordOk) {
-      throw new UnauthorizedException("Invalid credentials");
+      throw new UnauthorizedException("Credenciais inválidas");
     }
 
     const tokens = await this.issueTokens(user.id, user.email);
@@ -59,17 +59,17 @@ export class AuthService {
         secret: process.env.JWT_REFRESH_SECRET ?? "dev-refresh-secret"
       });
     } catch {
-      throw new UnauthorizedException("Invalid refresh token");
+      throw new UnauthorizedException("Token de renovação inválido");
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user?.refreshTokenHash) {
-      throw new UnauthorizedException("Invalid refresh token");
+      throw new UnauthorizedException("Token de renovação inválido");
     }
 
     const tokenOk = await argon2.verify(user.refreshTokenHash, refreshToken);
     if (!tokenOk) {
-      throw new UnauthorizedException("Invalid refresh token");
+      throw new UnauthorizedException("Token de renovação inválido");
     }
 
     return this.issueTokens(user.id, user.email);

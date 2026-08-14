@@ -55,23 +55,23 @@ type CartItem = {
 };
 
 const paymentMethods = [
-  { value: "CASH", label: "Numerario" },
+  { value: "CASH", label: "Numerário" },
   { value: "MPESA", label: "M-Pesa" },
   { value: "EMOLA", label: "e-Mola" },
-  { value: "CARD", label: "Cartao/POS" },
-  { value: "BANK_TRANSFER", label: "Transferencia" }
+  { value: "CARD", label: "Cartão/POS" },
+  { value: "BANK_TRANSFER", label: "Transferência" }
 ];
 
 const moduleCopy: Record<OperationsMode, { title: string; eyebrow: string; icon: LucideIcon }> = {
-  pos: { title: "Ponto de venda", eyebrow: "Venda rapida, recibo e stock", icon: ShoppingCart },
-  agenda: { title: "Agenda e fila", eyebrow: "Walk-in, marcacoes e atendimento", icon: Clock },
-  clientes: { title: "Clientes", eyebrow: "CRM, historico e fidelizacao", icon: Users },
-  servicos: { title: "Servicos", eyebrow: "Catalogo de barbearia e cabeleireiro", icon: Scissors },
-  stock: { title: "Stock", eyebrow: "Produtos, alertas e inventario", icon: PackagePlus },
+  pos: { title: "Ponto de venda", eyebrow: "Venda rápida, recibo e stock", icon: ShoppingCart },
+  agenda: { title: "Agenda e fila", eyebrow: "Walk-in, marcações e atendimento", icon: Clock },
+  clientes: { title: "Clientes", eyebrow: "CRM, histórico e fidelização", icon: Users },
+  servicos: { title: "Serviços", eyebrow: "Catálogo de barbearia e cabeleireiro", icon: Scissors },
+  stock: { title: "Stock", eyebrow: "Produtos, alertas e inventário", icon: PackagePlus },
   vendas: { title: "Vendas", eyebrow: "Recibos, pagamentos e caixa", icon: ReceiptText },
-  fidelizacao: { title: "Fidelizacao", eyebrow: "Pontos, pacotes e vouchers", icon: BadgePercent },
-  relatorios: { title: "Relatorios", eyebrow: "Indicadores operacionais", icon: BarChart3 },
-  admin: { title: "Administracao", eyebrow: "Utilizadores, definicoes e auditoria", icon: ShieldCheck }
+  fidelizacao: { title: "Fidelização", eyebrow: "Pontos, pacotes e vouchers", icon: BadgePercent },
+  relatorios: { title: "Relatórios", eyebrow: "Indicadores operacionais", icon: BarChart3 },
+  admin: { title: "Administração", eyebrow: "Utilizadores, definições e auditoria", icon: ShieldCheck }
 };
 
 export function OperationsPage({ mode }: OperationsPageProps) {
@@ -85,9 +85,9 @@ export function OperationsPage({ mode }: OperationsPageProps) {
   if (dataQuery.isError) {
     return (
       <section className="content-shell auth-required">
-        <img src="/pjlj-logo.jpg" alt="PJ&LJ Salao Unissex" />
-        <h1>Sessao necessaria</h1>
-        <p>Entre para aceder aos modulos operacionais protegidos por RBAC.</p>
+        <img src="/pjlj-logo.jpg" alt="PJ&LJ Salão Unissex" />
+        <h1>Sessão necessária</h1>
+        <p>Entre para aceder aos módulos operacionais protegidos por RBAC.</p>
         <a className="login-link" href="/login">Ir para login</a>
       </section>
     );
@@ -169,7 +169,7 @@ function PosPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () =>
       {message && <div className="notice strong">{message}</div>}
       <div className="pos-grid">
         <section className="tool-panel catalog-panel">
-          <SectionTitle icon={Scissors} title="Servicos" />
+          <SectionTitle icon={Scissors} title="Serviços" />
           <div className="chip-row">{unique(data.services.map((service) => service.category.name)).map((category) => <span key={category}>{category}</span>)}</div>
           <div className="tile-grid">
             {data.services.map((service) => (
@@ -199,12 +199,12 @@ function PosPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () =>
               {data.clients.map((client) => <option key={client.id} value={client.id}>{client.firstName} {client.lastName ?? ""}</option>)}
             </select></label>
             <label>Profissional<select value={selectedEmployeeId} onChange={(event) => setSelectedEmployeeId(event.target.value)}>
-              <option value="">Sem atribuicao</option>
+              <option value="">Sem atribuição</option>
               {data.staff.map((employee) => <option key={employee.id} value={employee.id}>{employee.name} - {employee.role}</option>)}
             </select></label>
           </div>
           <div className="cart-list">
-            {cart.length === 0 && <div className="empty-state small">Toque num servico ou produto.</div>}
+            {cart.length === 0 && <div className="empty-state small">Toque num serviço ou produto.</div>}
             {cart.map((item) => (
               <div className="cart-line" key={item.key}>
                 <span>{item.name}</span>
@@ -231,7 +231,7 @@ function ClientsPanel({ data, refresh }: { data: OperationsBootstrap; refresh: (
       <FormPanel title="Novo cliente" icon={<UserPlus size={18} />} onSubmit={(values) => mutation.mutate({ firstName: values.firstName, phone: values.phone, whatsapp: values.phone, notes: values.notes })}>
         <input name="firstName" placeholder="Nome do cliente" required />
         <input name="phone" placeholder="Telefone / WhatsApp" />
-        <textarea name="notes" placeholder="Preferencias, alergias, observacoes" />
+        <textarea name="notes" placeholder="Preferências, alergias, observações" />
       </FormPanel>
       <section className="tool-panel">
         <SectionTitle icon={Users} title="CRM" />
@@ -257,14 +257,14 @@ function AttendancePanel({ data, refresh }: { data: OperationsBootstrap; refresh
       <FormPanel title="Walk-in / fila" icon={<Clock size={18} />} onSubmit={(values) => queueMutation.mutate({ customerName: values.customerName, serviceId: values.serviceId, employeeId: values.employeeId || undefined })}>
         <input name="customerName" placeholder="Cliente" required />
         <Select name="serviceId" options={data.services.map((service) => [service.id, service.name])} />
-        <Select name="employeeId" empty="Proximo disponivel" options={data.staff.map((employee) => [employee.id, employee.name])} />
+        <Select name="employeeId" empty="Próximo disponível" options={data.staff.map((employee) => [employee.id, employee.name])} />
       </FormPanel>
-      <FormPanel title="Nova marcacao" icon={<CalendarPlus size={18} />} onSubmit={(values) => appointmentMutation.mutate({ customerName: values.customerName, serviceId: values.serviceId, employeeId: values.employeeId || undefined, startsAt: values.startsAt, durationMinutes: Number(values.durationMinutes || 30) })}>
+      <FormPanel title="Nova marcação" icon={<CalendarPlus size={18} />} onSubmit={(values) => appointmentMutation.mutate({ customerName: values.customerName, serviceId: values.serviceId, employeeId: values.employeeId || undefined, startsAt: values.startsAt, durationMinutes: Number(values.durationMinutes || 30) })}>
         <input name="customerName" placeholder="Cliente" required />
         <input name="startsAt" type="datetime-local" required />
         <input name="durationMinutes" type="number" min="10" defaultValue="30" />
         <Select name="serviceId" options={data.services.map((service) => [service.id, service.name])} />
-        <Select name="employeeId" empty="Sem atribuicao" options={data.staff.map((employee) => [employee.id, employee.name])} />
+        <Select name="employeeId" empty="Sem atribuição" options={data.staff.map((employee) => [employee.id, employee.name])} />
       </FormPanel>
       <section className="tool-panel wide">
         <SectionTitle icon={Clock} title="Fila ativa" />
@@ -272,7 +272,7 @@ function AttendancePanel({ data, refresh }: { data: OperationsBootstrap; refresh
           {data.queue.map((entry) => (
             <article key={entry.id}>
               <strong>{entry.customerName}</strong>
-              <span>{entry.service.name} · {entry.employee?.name ?? "Proximo disponivel"} · {entry.status}</span>
+              <span>{entry.service.name} · {entry.employee?.name ?? "Próximo disponível"} · {entry.status}</span>
               <div className="button-row">
                 <button onClick={() => statusMutation.mutate({ id: entry.id, status: "IN_SERVICE" })}>Iniciar</button>
                 <button onClick={() => statusMutation.mutate({ id: entry.id, status: "COMPLETED" })}>Concluir</button>
@@ -289,15 +289,15 @@ function ServicesPanel({ data, refresh }: { data: OperationsBootstrap; refresh: 
   const mutation = useMutation({ mutationFn: createService, onSuccess: refresh });
   return (
     <div className="split-grid">
-      <FormPanel title="Novo servico" icon={<Scissors size={18} />} onSubmit={(values) => mutation.mutate({ name: values.name, categoryName: values.categoryName, durationMinutes: Number(values.durationMinutes), price: Number(values.price), cost: Number(values.cost || 0) })}>
-        <input name="name" placeholder="Servico" required />
+      <FormPanel title="Novo serviço" icon={<Scissors size={18} />} onSubmit={(values) => mutation.mutate({ name: values.name, categoryName: values.categoryName, durationMinutes: Number(values.durationMinutes), price: Number(values.price), cost: Number(values.cost || 0) })}>
+        <input name="name" placeholder="Serviço" required />
         <input name="categoryName" placeholder="Categoria" defaultValue="Barbearia" required />
         <input name="durationMinutes" type="number" min="5" defaultValue="30" />
-        <input name="price" type="number" min="0" placeholder="Preco" required />
+        <input name="price" type="number" min="0" placeholder="Preço" required />
         <input name="cost" type="number" min="0" placeholder="Custo estimado" />
       </FormPanel>
       <section className="tool-panel">
-        <SectionTitle icon={Scissors} title="Catalogo de servicos" />
+        <SectionTitle icon={Scissors} title="Catálogo de serviços" />
         <div className="data-list two-col">
           {data.services.map((service) => (
             <article key={service.id}>
@@ -318,20 +318,20 @@ function StockPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
       <FormPanel title="Novo produto" icon={<PackagePlus size={18} />} onSubmit={(values) => mutation.mutate({ name: values.name, sku: values.sku, categoryName: values.categoryName, salePrice: Number(values.salePrice), purchasePrice: Number(values.purchasePrice || 0), stock: Number(values.stock || 0), minimumStock: Number(values.minimumStock || 0), unit: values.unit })}>
         <input name="name" placeholder="Produto" required />
         <input name="sku" placeholder="SKU opcional" />
-        <input name="categoryName" placeholder="Categoria" defaultValue="Cosmeticos" />
-        <input name="salePrice" type="number" min="0" placeholder="Preco venda" required />
-        <input name="purchasePrice" type="number" min="0" placeholder="Preco compra" />
+        <input name="categoryName" placeholder="Categoria" defaultValue="Cosméticos" />
+        <input name="salePrice" type="number" min="0" placeholder="Preço de venda" required />
+        <input name="purchasePrice" type="number" min="0" placeholder="Preço de compra" />
         <input name="stock" type="number" min="0" placeholder="Stock" required />
-        <input name="minimumStock" type="number" min="0" placeholder="Stock minimo" required />
+        <input name="minimumStock" type="number" min="0" placeholder="Stock mínimo" required />
         <input name="unit" placeholder="Unidade" defaultValue="unidade" />
       </FormPanel>
       <section className="tool-panel">
-        <SectionTitle icon={PackagePlus} title="Inventario" />
+        <SectionTitle icon={PackagePlus} title="Inventário" />
         <div className="data-list">
           {data.products.map((product) => (
             <article className={Number(product.stock) <= Number(product.minimumStock) ? "danger-line" : ""} key={product.id}>
               <strong>{product.name}</strong>
-              <span>{product.sku} · stock {Number(product.stock)} {product.unit} · minimo {Number(product.minimumStock)} · {money(product.salePrice)}</span>
+              <span>{product.sku} · stock {Number(product.stock)} {product.unit} · mínimo {Number(product.minimumStock)} · {money(product.salePrice)}</span>
             </article>
           ))}
         </div>
@@ -346,7 +346,7 @@ function SalesPanel({ data }: { data: OperationsBootstrap }) {
       <MetricCard label="Recibos emitidos" value={String(data.sales.length)} icon={ReceiptText} />
       <MetricCard label="Valor recente" value={money(data.sales.reduce((sum, sale) => sum + Number(sale.total), 0))} icon={Wallet} />
       <section className="tool-panel wide">
-        <SectionTitle icon={ReceiptText} title="Ultimas vendas" />
+        <SectionTitle icon={ReceiptText} title="Últimas vendas" />
         <div className="data-list">
           {data.sales.map((sale) => (
             <article key={sale.id}>
@@ -367,7 +367,7 @@ function LoyaltyPanel({ data }: { data: OperationsBootstrap }) {
       <MetricCard label="Clientes com pontos" value={String(data.clients.filter((client) => client.loyaltyPoints > 0).length)} icon={BadgePercent} />
       <MetricCard label="Pontos totais" value={String(data.clients.reduce((sum, client) => sum + client.loyaltyPoints, 0))} icon={Users} />
       <section className="tool-panel wide">
-        <SectionTitle icon={BadgePercent} title="Ranking de fidelizacao" />
+        <SectionTitle icon={BadgePercent} title="Ranking de fidelização" />
         <div className="data-list two-col">
           {topClients.map((client) => (
             <article key={client.id}>
@@ -387,17 +387,17 @@ function ReportsPanel({ data }: { data: OperationsBootstrap }) {
   const productRevenue = data.sales.flatMap((sale) => sale.items).filter((item) => item.type === "PRODUCT").reduce((sum, item) => sum + Number(item.total), 0);
   return (
     <div className="panel-grid">
-      <MetricCard label="Receita servicos" value={money(serviceRevenue)} icon={Scissors} />
+      <MetricCard label="Receita serviços" value={money(serviceRevenue)} icon={Scissors} />
       <MetricCard label="Receita produtos" value={money(productRevenue)} icon={PackagePlus} />
-      <MetricCard label="Stock critico" value={String(stockCritical)} icon={BarChart3} />
+      <MetricCard label="Stock crítico" value={String(stockCritical)} icon={BarChart3} />
       <section className="tool-panel wide">
         <SectionTitle icon={BarChart3} title="Resumo operacional" />
         <div className="report-strip">
           <span>Clientes: <strong>{data.clients.length}</strong></span>
-          <span>Servicos: <strong>{data.services.length}</strong></span>
+          <span>Serviços: <strong>{data.services.length}</strong></span>
           <span>Produtos: <strong>{data.products.length}</strong></span>
           <span>Fila ativa: <strong>{data.queue.length}</strong></span>
-          <span>Marcacoes: <strong>{data.appointments.length}</strong></span>
+          <span>Marcações: <strong>{data.appointments.length}</strong></span>
         </div>
       </section>
     </div>
@@ -420,7 +420,7 @@ function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
       <section className="tool-panel">
         <SectionTitle icon={Wallet} title="Caixa e terminal" />
         <div className="receipt-preview">
-          <img src="/pjlj-logo.jpg" alt="PJ&LJ Salao Unissex" />
+          <img src="/pjlj-logo.jpg" alt="PJ&LJ Salão Unissex" />
           <strong>{data.cash ? "Caixa aberto" : "Caixa fechado"}</strong>
           <span>Saldo esperado: {money(data.cash?.expectedBalance ?? 0)}</span>
         </div>
@@ -430,13 +430,13 @@ function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
         <input name="name" placeholder="Nome" required />
         <input name="email" type="email" placeholder="Email" required />
         <input name="phone" placeholder="Telefone" />
-        <input name="password" type="password" placeholder="Password temporaria" required />
+        <input name="password" type="password" placeholder="Palavra-passe temporária" required />
         <Select name="role" options={(roles.data ?? []).map((role) => [role.key, role.name])} />
       </FormPanel>
-      <FormPanel title="Definicoes do negocio" icon={<ShieldCheck size={18} />} onSubmit={(values) => settingsMutation.mutate({ ...profile, phone: values.phone, whatsapp: values.whatsapp, address: values.address, receiptFormat: values.receiptFormat })}>
+      <FormPanel title="Definições do negócio" icon={<ShieldCheck size={18} />} onSubmit={(values) => settingsMutation.mutate({ ...profile, phone: values.phone, whatsapp: values.whatsapp, address: values.address, receiptFormat: values.receiptFormat })}>
         <input name="phone" placeholder="Telefone" defaultValue={String(profile.phone ?? "")} />
         <input name="whatsapp" placeholder="WhatsApp" defaultValue={String(profile.whatsapp ?? "")} />
-        <input name="address" placeholder="Endereco" defaultValue={String(profile.address ?? "")} />
+        <input name="address" placeholder="Endereço" defaultValue={String(profile.address ?? "")} />
         <select name="receiptFormat" defaultValue={String(profile.receiptFormat ?? "80mm")}><option value="58mm">58 mm</option><option value="80mm">80 mm</option><option value="A4">A4 / PDF</option></select>
       </FormPanel>
       <section className="tool-panel">

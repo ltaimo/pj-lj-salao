@@ -545,7 +545,7 @@ textarea {
   background: #171615;
   display: grid;
   grid-template-columns: minmax(320px, 0.95fr) minmax(320px, 1.05fr);
-  min-height: calc(100vh - 68px);
+  min-height: 100vh;
   padding: 0;
 }
 
@@ -732,7 +732,7 @@ textarea {
 
   .pro-login {
     display: block;
-    min-height: calc(100vh - 68px);
+    min-height: 100vh;
     padding-bottom: 24px;
   }
 
