@@ -188,6 +188,22 @@ export class OperationsService {
     return product;
   }
 
+  async removeProduct(user: UserContext, id: string) {
+    const scope = this.scope(user);
+    const product = await this.prisma.product.findFirst({
+      where: { id, organizationId: scope.organizationId, branchId: scope.branchId, active: true },
+      include: { category: true }
+    });
+    if (!product) throw new NotFoundException("Produto não encontrado");
+    const removed = await this.prisma.product.update({
+      where: { id: product.id },
+      data: { active: false },
+      include: { category: true }
+    });
+    await this.audit.record({ ...scope, userId: user.id, action: "REMOVE", entity: "products", entityId: product.id, before: product, after: removed });
+    return removed;
+  }
+
   async staff(user: UserContext) {
     const scope = this.scope(user);
     return this.prisma.employee.findMany({

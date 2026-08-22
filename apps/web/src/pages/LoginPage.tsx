@@ -1,11 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, LockKeyhole, Mail, Wifi } from "lucide-react";
+import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
-import { health, login, setSession } from "../api/client";
-import { useQuery } from "@tanstack/react-query";
+import { login, setSession } from "../api/client";
 
 const schema = z.object({
   email: z.string().email(),
@@ -17,7 +16,6 @@ type LoginForm = z.infer<typeof schema>;
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const apiHealth = useQuery({ queryKey: ["login-health"], queryFn: health, retry: 1 });
   const [message, setMessage] = useState<string>();
   const [showPassword, setShowPassword] = useState(false);
   const { register, handleSubmit, formState } = useForm<LoginForm>({
@@ -25,7 +23,7 @@ export function LoginPage() {
     defaultValues: {
       email: "",
       password: "",
-      remember: true
+      remember: false
     }
   });
 
@@ -50,9 +48,9 @@ export function LoginPage() {
           <h1>PJ&LJ Salon Manager</h1>
           <span>Barbearia · Cabeleireiro · POS · Stock · Fidelização</span>
         </div>
-        <div className={apiHealth.isSuccess ? "login-health ok" : "login-health"}>
-          <Wifi size={18} />
-          {apiHealth.isSuccess ? "API online" : "A verificar API"}
+        <div className="login-health ok">
+          <ShieldCheck size={18} />
+          Acesso reservado à equipa
         </div>
       </div>
       <form onSubmit={handleSubmit(onSubmit)} className="login-panel">

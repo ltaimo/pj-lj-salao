@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
 import { RequirePermissions } from "../common/permissions.decorator";
@@ -60,6 +60,12 @@ export class OperationsController {
   @RequirePermissions("products.manage")
   createProduct(@Req() request: AuthenticatedRequest, @Body() body: unknown) {
     return this.operations.createProduct(request.user, body);
+  }
+
+  @Delete("products/:id")
+  @RequirePermissions("products.manage")
+  removeProduct(@Req() request: AuthenticatedRequest, @Param("id") id: string) {
+    return this.operations.removeProduct(request.user, id);
   }
 
   @Get("staff")

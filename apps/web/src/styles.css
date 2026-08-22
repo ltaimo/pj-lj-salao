@@ -495,6 +495,31 @@ textarea {
   min-height: 36px;
 }
 
+.stacked-panels {
+  align-self: start;
+  display: grid;
+  gap: 14px;
+}
+
+.action-line {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.action-line > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.danger-button {
+  background: #fff4ef;
+  border: 1px solid #d95f43;
+  color: #9a3d2a;
+  min-height: 36px;
+  padding: 0 12px;
+}
+
 .danger-line {
   border-color: #d95f43 !important;
 }
@@ -726,7 +751,8 @@ textarea {
   }
 
   .data-list.two-col,
-  .report-strip {
+  .report-strip,
+  .action-line {
     grid-template-columns: 1fr;
   }
 

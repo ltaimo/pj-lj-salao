@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import * as argon2 from "argon2";
 import { AuditService } from "../audit/audit.service";
@@ -83,6 +83,39 @@ export class UsersController {
       entity: "users",
       entityId: user.id,
       after: { id: user.id, email: user.email, roles: roles.map((role) => role.key) }
+    });
+    const { passwordHash: _passwordHash, refreshTokenHash: _refreshTokenHash, ...safeUser } = user;
+    return { ...safeUser, roles: user.userRoles.map((userRole) => userRole.role.key) };
+  }
+
+  @Delete(":id")
+  @RequirePermissions("staff.manage")
+  async deactivate(
+    @Req() request: { user: { id: string; organizationId?: string; branchId?: string } },
+    @Param("id") id: string
+  ) {
+    if (id === request.user.id) {
+      throw new BadRequestException("Não pode desativar o próprio acesso");
+    }
+    const before = await this.prisma.user.findFirst({
+      where: { id, organizationId: request.user.organizationId, deletedAt: null },
+      include: { userRoles: { include: { role: true } } }
+    });
+    if (!before) throw new NotFoundException("Utilizador não encontrado");
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: { status: "BLOCKED", deletedAt: new Date(), refreshTokenHash: null },
+      include: { userRoles: { include: { role: true } } }
+    });
+    await this.audit.record({
+      userId: request.user.id,
+      organizationId: request.user.organizationId,
+      branchId: request.user.branchId,
+      action: "DEACTIVATE",
+      entity: "users",
+      entityId: user.id,
+      before: { id: before.id, email: before.email, roles: before.userRoles.map((userRole) => userRole.role.key) },
+      after: { id: user.id, email: user.email, status: user.status }
     });
     const { passwordHash: _passwordHash, refreshTokenHash: _refreshTokenHash, ...safeUser } = user;
     return { ...safeUser, roles: user.userRoles.map((userRole) => userRole.role.key) };

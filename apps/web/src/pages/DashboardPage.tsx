@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Banknote, BriefcaseBusiness, Clock, Scissors, Users, Wallet } from "lucide-react";
-import { dashboardSummary, health } from "../api/client";
+import { dashboardSummary } from "../api/client";
 
 export function DashboardPage() {
-  const apiHealth = useQuery({ queryKey: ["health"], queryFn: health, retry: 1 });
   const summary = useQuery({ queryKey: ["dashboard-summary"], queryFn: dashboardSummary, retry: 1 });
   const data = summary.data;
   const metrics = [
@@ -26,9 +25,7 @@ export function DashboardPage() {
           <p>Operação principal</p>
           <h1>Dashboard</h1>
         </div>
-        <div className={apiHealth.isSuccess ? "status ok" : "status"}>
-          API {apiHealth.isSuccess ? "online" : "a verificar"}
-        </div>
+        <div className="status ok">Pronto para atendimento</div>
       </div>
       <div className="metric-grid">
         {metrics.map((metric) => (
@@ -40,7 +37,7 @@ export function DashboardPage() {
         ))}
       </div>
       {summary.isError && (
-        <div className="notice">Inicie sessão para carregar os indicadores operacionais protegidos por RBAC.</div>
+        <div className="notice">Não foi possível carregar os indicadores agora. Verifique a sessão e tente novamente.</div>
       )}
       <div className="operations-grid">
         <section>

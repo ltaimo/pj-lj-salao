@@ -173,8 +173,10 @@ export type OperationsBootstrap = {
   settings?: unknown;
 };
 
-const ACCESS_TOKEN_KEY = "pjlj.accessToken";
-const REFRESH_TOKEN_KEY = "pjlj.refreshToken";
+const ACCESS_TOKEN_KEY = "pjlj.v2.accessToken";
+const REFRESH_TOKEN_KEY = "pjlj.v2.refreshToken";
+const LEGACY_ACCESS_TOKEN_KEY = "pjlj.accessToken";
+const LEGACY_REFRESH_TOKEN_KEY = "pjlj.refreshToken";
 
 export function getAccessToken() {
   return localStorage.getItem(ACCESS_TOKEN_KEY) ?? sessionStorage.getItem(ACCESS_TOKEN_KEY);
@@ -196,8 +198,19 @@ export function setSession(tokens: LoginResponse, remember: boolean) {
 export function clearSession() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+  localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY);
   sessionStorage.removeItem(ACCESS_TOKEN_KEY);
   sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+  sessionStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+  sessionStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY);
+}
+
+function redirectToLogin() {
+  clearSession();
+  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+    window.location.replace("/login");
+  }
 }
 
 function authHeaders() {
@@ -216,8 +229,11 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   };
   const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || "Pedido indisponível");
+    if (response.status === 401) {
+      redirectToLogin();
+      throw new Error("Sessão expirada. Entre novamente para continuar.");
+    }
+    throw new Error(await friendlyError(response, "Não foi possível concluir a operação."));
   }
   return response.json();
 }
@@ -227,9 +243,25 @@ export async function dashboardSummary(): Promise<DashboardSummary> {
     headers: authHeaders()
   });
   if (!response.ok) {
-    throw new Error("Dashboard indisponível");
+    if (response.status === 401) {
+      redirectToLogin();
+      throw new Error("Sessão expirada. Entre novamente para continuar.");
+    }
+    throw new Error(await friendlyError(response, "Não foi possível carregar os indicadores."));
   }
   return response.json();
+}
+
+async function friendlyError(response: Response, fallback: string) {
+  const text = await response.text();
+  if (!text) return fallback;
+  try {
+    const body = JSON.parse(text) as { message?: string | string[]; error?: string };
+    if (Array.isArray(body.message)) return body.message.join(" ");
+    return body.message ?? body.error ?? fallback;
+  } catch {
+    return text.length > 180 ? fallback : text;
+  }
 }
 
 export function operationsBootstrap() {
@@ -279,6 +311,10 @@ export function createProduct(payload: {
   return api<Product>("/products", { method: "POST", body: JSON.stringify(payload) });
 }
 
+export function removeProduct(id: string) {
+  return api<Product>(`/products/${id}`, { method: "DELETE" });
+}
+
 export function createService(payload: { name: string; categoryName: string; durationMinutes: number; price: number; cost?: number }) {
   return api<Service>("/services", { method: "POST", body: JSON.stringify(payload) });
 }
@@ -303,6 +339,10 @@ export function listRoles() {
 
 export function createUser(payload: { name: string; email: string; phone?: string; password: string; roles: string[] }) {
   return api<AppUser>("/users", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function deactivateUser(id: string) {
+  return api<AppUser>(`/users/${id}`, { method: "DELETE" });
 }
 
 export function listSettings() {

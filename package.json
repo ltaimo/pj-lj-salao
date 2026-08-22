@@ -23,6 +23,7 @@
     "foundation:verify": "node tests/foundation-smoke.mjs",
     "operations:verify": "node tests/operations-smoke.mjs",
     "admin:verify": "node tests/admin-smoke.mjs",
+    "management:verify": "node tests/management-smoke.mjs",
     "deploy:vercel": "npx.cmd vercel deploy --prod --yes"
   },
   "devDependencies": {

@@ -12,6 +12,7 @@ import {
   Scissors,
   ShieldCheck,
   ShoppingCart,
+  Trash2,
   UserPlus,
   Users,
   Wallet,
@@ -26,12 +27,14 @@ import {
   createSale,
   createService,
   createUser,
+  deactivateUser,
   listAudit,
   listRoles,
   listSettings,
   listUsers,
   openCash,
   operationsBootstrap,
+  removeProduct,
   updateBusinessProfile,
   updateQueueStatus,
   type OperationsBootstrap,
@@ -86,8 +89,8 @@ export function OperationsPage({ mode }: OperationsPageProps) {
     return (
       <section className="content-shell auth-required">
         <img src="/pjlj-logo.jpg" alt="PJ&LJ Salão Unissex" />
-        <h1>Sessão necessária</h1>
-        <p>Entre para aceder aos módulos operacionais protegidos por RBAC.</p>
+        <h1>Vamos entrar novamente</h1>
+        <p>A sessão precisa de ser renovada para proteger os dados do salão.</p>
         <a className="login-link" href="/login">Ir para login</a>
       </section>
     );
@@ -101,7 +104,7 @@ export function OperationsPage({ mode }: OperationsPageProps) {
           <p>{copy.eyebrow}</p>
           <h1>{copy.title}</h1>
         </div>
-        <div className="status ok">{dataQuery.isFetching ? "A sincronizar" : "Online"}</div>
+        <div className="status ok">{dataQuery.isFetching ? "A atualizar" : "Atualizado"}</div>
       </div>
       {data && (
         <>
@@ -313,25 +316,48 @@ function ServicesPanel({ data, refresh }: { data: OperationsBootstrap; refresh: 
 
 function StockPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () => void }) {
   const mutation = useMutation({ mutationFn: createProduct, onSuccess: refresh });
+  const [message, setMessage] = useState("");
+  const removeMutation = useMutation({
+    mutationFn: removeProduct,
+    onSuccess: () => {
+      setMessage("Produto removido do catálogo.");
+      refresh();
+    },
+    onError: (error) => setMessage(error instanceof Error ? error.message : "Não foi possível remover o produto.")
+  });
+
+  function confirmRemove(product: Product) {
+    const ok = window.confirm(`Remover "${product.name}" do catálogo? O histórico de vendas e stock será mantido.`);
+    if (ok) removeMutation.mutate(product.id);
+  }
+
   return (
     <div className="split-grid">
-      <FormPanel title="Novo produto" icon={<PackagePlus size={18} />} onSubmit={(values) => mutation.mutate({ name: values.name, sku: values.sku, categoryName: values.categoryName, salePrice: Number(values.salePrice), purchasePrice: Number(values.purchasePrice || 0), stock: Number(values.stock || 0), minimumStock: Number(values.minimumStock || 0), unit: values.unit })}>
-        <input name="name" placeholder="Produto" required />
-        <input name="sku" placeholder="SKU opcional" />
-        <input name="categoryName" placeholder="Categoria" defaultValue="Cosméticos" />
-        <input name="salePrice" type="number" min="0" placeholder="Preço de venda" required />
-        <input name="purchasePrice" type="number" min="0" placeholder="Preço de compra" />
-        <input name="stock" type="number" min="0" placeholder="Stock" required />
-        <input name="minimumStock" type="number" min="0" placeholder="Stock mínimo" required />
-        <input name="unit" placeholder="Unidade" defaultValue="unidade" />
-      </FormPanel>
+      <div className="stacked-panels">
+        <FormPanel title="Novo produto" icon={<PackagePlus size={18} />} onSubmit={(values) => mutation.mutate({ name: values.name, sku: values.sku, categoryName: values.categoryName, salePrice: Number(values.salePrice), purchasePrice: Number(values.purchasePrice || 0), stock: Number(values.stock || 0), minimumStock: Number(values.minimumStock || 0), unit: values.unit })}>
+          <input name="name" placeholder="Produto" required />
+          <input name="sku" placeholder="SKU opcional" />
+          <input name="categoryName" placeholder="Categoria" defaultValue="Cosméticos" />
+          <input name="salePrice" type="number" min="0" placeholder="Preço de venda" required />
+          <input name="purchasePrice" type="number" min="0" placeholder="Preço de compra" />
+          <input name="stock" type="number" min="0" placeholder="Stock" required />
+          <input name="minimumStock" type="number" min="0" placeholder="Stock mínimo" required />
+          <input name="unit" placeholder="Unidade" defaultValue="unidade" />
+        </FormPanel>
+        {message && <div className="notice strong">{message}</div>}
+      </div>
       <section className="tool-panel">
         <SectionTitle icon={PackagePlus} title="Inventário" />
         <div className="data-list">
           {data.products.map((product) => (
-            <article className={Number(product.stock) <= Number(product.minimumStock) ? "danger-line" : ""} key={product.id}>
-              <strong>{product.name}</strong>
-              <span>{product.sku} · stock {Number(product.stock)} {product.unit} · mínimo {Number(product.minimumStock)} · {money(product.salePrice)}</span>
+            <article className={Number(product.stock) <= Number(product.minimumStock) ? "danger-line action-line" : "action-line"} key={product.id}>
+              <div>
+                <strong>{product.name}</strong>
+                <span>{product.sku} · stock {Number(product.stock)} {product.unit} · mínimo {Number(product.minimumStock)} · {money(product.salePrice)}</span>
+              </div>
+              <button className="danger-button" type="button" onClick={() => confirmRemove(product)} disabled={removeMutation.isPending}>
+                <Trash2 size={16} /> Remover
+              </button>
             </article>
           ))}
         </div>
@@ -412,11 +438,27 @@ function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
   const queryClient = useQueryClient();
   const cashMutation = useMutation({ mutationFn: openCash, onSuccess: refresh });
   const userMutation = useMutation({ mutationFn: createUser, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }) });
+  const [adminMessage, setAdminMessage] = useState("");
+  const deactivateMutation = useMutation({
+    mutationFn: deactivateUser,
+    onSuccess: () => {
+      setAdminMessage("Utilizador desativado.");
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      refresh();
+    },
+    onError: (error) => setAdminMessage(error instanceof Error ? error.message : "Não foi possível desativar o utilizador.")
+  });
   const settingsMutation = useMutation({ mutationFn: updateBusinessProfile, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings"] }) });
   const profile = settings.data?.find((item) => item.key === "business.profile")?.value ?? {};
 
+  function confirmDeactivate(user: { id: string; name: string }) {
+    const ok = window.confirm(`Desativar o acesso de ${user.name}?`);
+    if (ok) deactivateMutation.mutate(user.id);
+  }
+
   return (
     <div className="admin-grid">
+      {adminMessage && <div className="notice strong wide">{adminMessage}</div>}
       <section className="tool-panel">
         <SectionTitle icon={Wallet} title="Caixa e terminal" />
         <div className="receipt-preview">
@@ -443,7 +485,15 @@ function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
         <SectionTitle icon={Users} title="Utilizadores" />
         <div className="data-list">
           {(users.data ?? []).map((user) => (
-            <article key={user.id}><strong>{user.name}</strong><span>{user.email} · {user.roles.join(", ")}</span></article>
+            <article className="action-line" key={user.id}>
+              <div>
+                <strong>{user.name}</strong>
+                <span>{user.email} · {user.roles.join(", ")}</span>
+              </div>
+              <button className="danger-button" type="button" onClick={() => confirmDeactivate(user)} disabled={deactivateMutation.isPending}>
+                <Trash2 size={16} /> Desativar
+              </button>
+            </article>
           ))}
         </div>
       </section>
