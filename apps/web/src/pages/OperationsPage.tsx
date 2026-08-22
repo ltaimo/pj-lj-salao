@@ -5,6 +5,8 @@ import {
   CalendarPlus,
   Check,
   Clock,
+  Download,
+  FileText,
   PackagePlus,
   Plus,
   Printer,
@@ -13,6 +15,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Trash2,
+  X,
   UserPlus,
   Users,
   Wallet,
@@ -39,6 +42,7 @@ import {
   updateQueueStatus,
   type OperationsBootstrap,
   type Product,
+  type Sale,
   type Service
 } from "../api/client";
 
@@ -130,12 +134,14 @@ function PosPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () =>
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [message, setMessage] = useState("");
+  const [receiptSale, setReceiptSale] = useState<Sale>();
   const total = useMemo(() => cart.reduce((sum, item) => sum + item.price * item.quantity, 0), [cart]);
   const saleMutation = useMutation({
     mutationFn: createSale,
     onSuccess: (sale) => {
       setCart([]);
       setMessage(`Recibo ${sale.receiptNumber} emitido. Venda fechada e stock atualizado.`);
+      setReceiptSale(sale);
       refresh();
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
@@ -223,6 +229,7 @@ function PosPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () =>
           <button className="primary-action" disabled={cart.length === 0 || saleMutation.isPending} onClick={finishSale}><Printer size={18} /> Cobrar e emitir recibo</button>
         </section>
       </div>
+      {receiptSale && <ReceiptModal sale={receiptSale} onClose={() => setReceiptSale(undefined)} />}
     </>
   );
 }
@@ -367,6 +374,7 @@ function StockPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
 }
 
 function SalesPanel({ data }: { data: OperationsBootstrap }) {
+  const [receiptSale, setReceiptSale] = useState<Sale>();
   return (
     <div className="panel-grid">
       <MetricCard label="Recibos emitidos" value={String(data.sales.length)} icon={ReceiptText} />
@@ -375,13 +383,17 @@ function SalesPanel({ data }: { data: OperationsBootstrap }) {
         <SectionTitle icon={ReceiptText} title="Últimas vendas" />
         <div className="data-list">
           {data.sales.map((sale) => (
-            <article key={sale.id}>
-              <strong>{sale.receiptNumber}</strong>
-              <span>{money(sale.total)} · {sale.payments.map((payment) => payment.method).join(", ")} · {new Date(sale.createdAt).toLocaleString("pt-MZ")}</span>
+            <article className="action-line" key={sale.id}>
+              <div>
+                <strong>{sale.receiptNumber}</strong>
+                <span>{money(sale.total)} · {sale.payments.map((payment) => payment.method).join(", ")} · {new Date(sale.createdAt).toLocaleString("pt-MZ")}</span>
+              </div>
+              <button type="button" onClick={() => setReceiptSale(sale)}><ReceiptText size={16} /> Ver recibo</button>
             </article>
           ))}
         </div>
       </section>
+      {receiptSale && <ReceiptModal sale={receiptSale} onClose={() => setReceiptSale(undefined)} />}
     </div>
   );
 }
@@ -543,10 +555,183 @@ function MetricCard({ label, value, icon: Icon }: { label: string; value: string
   return <article className="metric-card"><Icon size={22} /><span>{label}</span><strong>{value}</strong></article>;
 }
 
+function ReceiptModal({ sale, onClose }: { sale: Sale; onClose: () => void }) {
+  const receiptText = buildReceiptText(sale);
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={`Recibo ${sale.receiptNumber}`}>
+      <section className="receipt-modal">
+        <header className="receipt-modal-header">
+          <div>
+            <p>Pré-visualização do recibo</p>
+            <h2>{sale.receiptNumber}</h2>
+          </div>
+          <button className="icon-button dark" type="button" onClick={onClose} aria-label="Fechar recibo"><X size={18} /></button>
+        </header>
+        <div className="receipt-paper">
+          <img src="/pjlj-logo.jpg" alt="PJ&LJ Salão Unissex" />
+          <h3>PJ&LJ Salão Unissex</h3>
+          <span>{new Date(sale.createdAt).toLocaleString("pt-MZ")}</span>
+          <strong>{sale.receiptNumber}</strong>
+          <div className="receipt-lines">
+            {sale.items.map((item) => (
+              <div key={`${item.description}-${item.total}`}>
+                <span>{item.quantity} x {item.description}</span>
+                <b>{money(item.total)}</b>
+              </div>
+            ))}
+          </div>
+          <div className="receipt-totals">
+            <div><span>Total</span><b>{money(sale.total)}</b></div>
+            <div><span>Pago</span><b>{money(sale.paidAmount)}</b></div>
+            <div><span>Troco</span><b>{money(sale.changeAmount)}</b></div>
+          </div>
+          <small>Obrigado pela preferência.</small>
+        </div>
+        <textarea className="receipt-plain" readOnly value={receiptText} aria-label="Texto do recibo" />
+        <div className="button-row receipt-actions">
+          <button type="button" onClick={() => printReceipt(sale)}><Printer size={18} /> Imprimir</button>
+          <button type="button" onClick={() => downloadReceiptHtml(sale)}><Download size={18} /> Guardar</button>
+          <button type="button" onClick={() => downloadReceiptPdf(sale)}><FileText size={18} /> Gerar PDF</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function unique(values: string[]) {
   return Array.from(new Set(values));
 }
 
 function money(value: string | number) {
   return `${Number(value).toLocaleString("pt-MZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT`;
+}
+
+function buildReceiptText(sale: Sale) {
+  const lines = [
+    "PJ&LJ Salão Unissex",
+    `Recibo: ${sale.receiptNumber}`,
+    `Data: ${new Date(sale.createdAt).toLocaleString("pt-MZ")}`,
+    "",
+    ...sale.items.map((item) => `${item.quantity} x ${item.description} - ${money(item.total)}`),
+    "",
+    `Total: ${money(sale.total)}`,
+    `Pago: ${money(sale.paidAmount)}`,
+    `Troco: ${money(sale.changeAmount)}`,
+    `Pagamento: ${sale.payments.map((payment) => `${payment.method} ${money(payment.amount)}`).join(", ")}`,
+    "",
+    "Obrigado pela preferência."
+  ];
+  return lines.join("\n");
+}
+
+function buildReceiptHtml(sale: Sale) {
+  return `<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(sale.receiptNumber)}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 24px; color: #171615; }
+    .receipt { margin: 0 auto; max-width: 360px; }
+    .center { text-align: center; }
+    img { border-radius: 8px; height: 96px; object-fit: cover; width: 96px; }
+    h1 { font-size: 20px; margin: 12px 0 4px; }
+    .muted { color: #666; font-size: 12px; }
+    .line { border-top: 1px dashed #bbb; display: flex; justify-content: space-between; padding: 8px 0; }
+    .totals { border-top: 2px solid #171615; margin-top: 10px; padding-top: 8px; }
+    .totals div { display: flex; font-weight: 700; justify-content: space-between; padding: 4px 0; }
+    @media print { body { padding: 0; } button { display: none; } }
+  </style>
+</head>
+<body>
+  <main class="receipt">
+    <div class="center">
+      <img src="${window.location.origin}/pjlj-logo.jpg" alt="PJ&LJ Salão Unissex" />
+      <h1>PJ&LJ Salão Unissex</h1>
+      <div class="muted">${escapeHtml(new Date(sale.createdAt).toLocaleString("pt-MZ"))}</div>
+      <strong>${escapeHtml(sale.receiptNumber)}</strong>
+    </div>
+    ${sale.items.map((item) => `<div class="line"><span>${escapeHtml(String(item.quantity))} x ${escapeHtml(item.description)}</span><strong>${escapeHtml(money(item.total))}</strong></div>`).join("")}
+    <section class="totals">
+      <div><span>Total</span><span>${escapeHtml(money(sale.total))}</span></div>
+      <div><span>Pago</span><span>${escapeHtml(money(sale.paidAmount))}</span></div>
+      <div><span>Troco</span><span>${escapeHtml(money(sale.changeAmount))}</span></div>
+    </section>
+    <p class="center">Obrigado pela preferência.</p>
+  </main>
+</body>
+</html>`;
+}
+
+function printReceipt(sale: Sale) {
+  const popup = window.open("", "_blank", "width=420,height=720");
+  if (!popup) return;
+  popup.document.write(buildReceiptHtml(sale));
+  popup.document.close();
+  popup.focus();
+  popup.print();
+}
+
+function downloadReceiptHtml(sale: Sale) {
+  downloadBlob(`${sale.receiptNumber}.html`, new Blob([buildReceiptHtml(sale)], { type: "text/html;charset=utf-8" }));
+}
+
+function downloadReceiptPdf(sale: Sale) {
+  downloadBlob(`${sale.receiptNumber}.pdf`, new Blob([buildSimplePdf(buildReceiptText(sale))], { type: "application/pdf" }));
+}
+
+function downloadBlob(filename: string, blob: Blob) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildSimplePdf(text: string) {
+  const escapedLines = text.split("\n").map((line) => escapePdf(toPdfSafeText(line)));
+  const content = [
+    "BT",
+    "/F1 11 Tf",
+    "48 790 Td",
+    "14 TL",
+    ...escapedLines.map((line) => `(${line}) Tj T*`),
+    "ET"
+  ].join("\n");
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return pdf;
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function escapePdf(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+function toPdfSafeText(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7E]/g, "-");
 }

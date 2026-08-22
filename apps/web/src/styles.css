@@ -557,6 +557,110 @@ textarea {
   width: 120px;
 }
 
+.modal-backdrop {
+  align-items: center;
+  background: rgb(23 22 21 / 72%);
+  display: grid;
+  inset: 0;
+  justify-items: center;
+  padding: 18px;
+  position: fixed;
+  z-index: 20;
+}
+
+.receipt-modal {
+  background: #fffaf2;
+  border: 1px solid #e6ded2;
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  max-height: calc(100vh - 36px);
+  max-width: 760px;
+  overflow: auto;
+  padding: 18px;
+  width: min(100%, 760px);
+}
+
+.receipt-modal-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.receipt-modal-header p {
+  color: #8e653f;
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.icon-button.dark {
+  background: #171615;
+  color: #f7d7a3;
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+.receipt-paper {
+  background: white;
+  border: 1px solid #e6ded2;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  justify-self: center;
+  max-width: 360px;
+  padding: 18px;
+  text-align: center;
+  width: 100%;
+}
+
+.receipt-paper img {
+  border-radius: 8px;
+  height: 88px;
+  justify-self: center;
+  object-fit: cover;
+  width: 88px;
+}
+
+.receipt-paper h3 {
+  margin: 0;
+}
+
+.receipt-paper > span,
+.receipt-paper small {
+  color: #687078;
+}
+
+.receipt-lines,
+.receipt-totals {
+  border-top: 1px dashed #d8d0c4;
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+  text-align: left;
+}
+
+.receipt-lines div,
+.receipt-totals div {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.receipt-totals {
+  border-top-style: solid;
+}
+
+.receipt-plain {
+  font-family: Consolas, "Courier New", monospace;
+  min-height: 150px;
+}
+
+.receipt-actions {
+  justify-content: flex-end;
+}
+
 .foundation-stats {
   color: #687078;
   display: grid;
@@ -774,6 +878,10 @@ textarea {
   .login-panel {
     margin: 0 auto;
     width: calc(100% - 28px);
+  }
+
+  .receipt-actions {
+    display: grid;
   }
 
   .login-options {
