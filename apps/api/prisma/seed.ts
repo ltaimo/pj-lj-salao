@@ -7,10 +7,10 @@ const prisma = new PrismaClient();
 async function main() {
   const organization = await prisma.organization.upsert({
     where: { id: "00000000-0000-4000-8000-000000000001" },
-    update: {},
+    update: { name: "PJ&LJ Salão Unissex" },
     create: {
       id: "00000000-0000-4000-8000-000000000001",
-      name: "PJ&LJ Salao Unissex",
+      name: "PJ&LJ Salão Unissex",
       currency: "MZN",
       timezone: "Africa/Maputo",
       language: "pt"

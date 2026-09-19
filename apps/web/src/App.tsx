@@ -2,6 +2,7 @@ import {
   BarChart3,
   CalendarDays,
   LayoutDashboard,
+  LockKeyhole,
   Menu,
   PackageSearch,
   Percent,
@@ -71,6 +72,7 @@ export function App() {
   const navigate = useNavigate();
   const authenticated = hasSession();
   const me = useQuery({queryKey:["current-user"],queryFn:currentUser,enabled:authenticated,retry:1});
+  const organizationName = (me.data?.organizationName ?? "PJ&LJ Salão Unissex").replace(/\bSalao\b/gi, "Salão");
   const [menuOpen,setMenuOpen] = useState(false);
   const required: Record<string,string> = {"/pos":"sales.create","/stock":"inventory.view","/vendas":"reports.sales","/relatorios":"reports.sales","/admin":"settings.manage"};
   const visible = (path:string) => !required[path] || Boolean(me.data?.permissions.includes(required[path]));
@@ -97,7 +99,7 @@ export function App() {
         <div className="brand">
           <img src="/pjlj-logo.jpg" alt="PJ&LJ Salão Unissex" />
           <span>PJ&LJ</span>
-          <small>Salon Manager</small>
+          <small>Gestão do salão</small>
         </div>
         <nav className="side-nav">
           {moduleGroups.map((group) => (
@@ -115,11 +117,14 @@ export function App() {
       </aside>
       <main>
         <header className="topbar">
-          <div>
-            <strong>{me.data?.organizationName ?? "PJ&LJ Salão Unissex"}</strong>
+          <div className="topbar-identity">
+            <strong>{organizationName}</strong>
             <span>{me.data ? `${me.data.name} · ${me.data.branchName}` : "A carregar a sessão…"}</span>
           </div>
-          <div className="button-row"><button type="button" onClick={()=>setPasswordOpen(true)}>Palavra-passe</button><button className="login-link" type="button" onClick={logout}><LogOut size={18} /> Sair</button></div>
+          <div className="topbar-actions">
+            <button className="topbar-action secondary" type="button" onClick={()=>setPasswordOpen(true)} title="Alterar palavra-passe"><LockKeyhole size={17} /> <span>Segurança</span></button>
+            <button className="topbar-action" type="button" onClick={logout}><LogOut size={17} /> <span>Sair</span></button>
+          </div>
         </header>
         <Routes>
           <Route path="/login" element={<Navigate to="/" replace />} />

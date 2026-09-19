@@ -45,29 +45,31 @@ export function DashboardPage() {
       )}
 
       {loyaltyData && (
-        <div style={{ marginTop: "24px" }}>
-          <h2>Programa de Fidelidade PJ&LJ</h2>
-          <div className="metric-grid" style={{ marginTop: "12px" }}>
+        <section className="dashboard-section">
+          <div className="section-heading">
+            <div><span>Relacionamento</span><h2>Programa de fidelidade</h2></div>
+          </div>
+          <div className="metric-grid">
             <article className="metric-card">
               <CreditCard size={22} color="#8e653f" />
-              <span>Cartões Ativos</span>
+              <span>Cartões ativos</span>
               <strong>{loyaltyData.activeCardsCount}</strong>
             </article>
             <article className="metric-card">
               <Award size={22} color="#8e653f" />
-              <span>Pontos em Circulação</span>
+              <span>Pontos em circulação</span>
               <strong>{loyaltyData.totalPointsInCirculation.toLocaleString("pt-MZ")} pts</strong>
             </article>
             <article className="metric-card">
               <Wallet size={22} color="#8e653f" />
-              <span>Passivo em Resgate</span>
+              <span>Valor disponível para resgate</span>
               <strong>{loyaltyData.totalMonetaryEquivalent.toLocaleString("pt-MZ")} MT</strong>
             </article>
           </div>
-        </div>
+        </section>
       )}
 
-      <div className="operations-grid" style={{ marginTop: "24px" }}>
+      <div className="operations-grid dashboard-section">
         <section>
           <h2>Fila de atendimento</h2>
           {operations.data?.queue.length ? operations.data.queue.map(entry=><p key={entry.id}><strong>{entry.customerName}</strong> · {entry.service.name}</p>) : <div className="empty-state">Sem clientes em espera.</div>}

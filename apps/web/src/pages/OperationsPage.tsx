@@ -60,7 +60,6 @@ import {
   issueLoyaltyCard,
   listAudit,
   listRoles,
-  listSettings,
   listUsers,
   lookupLoyaltyCard,
   manualLoyaltyAdjustment,
@@ -113,7 +112,7 @@ const moduleCopy: Record<OperationsMode, { title: string; eyebrow: string; icon:
   stock: { title: "Stock", eyebrow: "Produtos, alertas e inventário", icon: PackagePlus },
   vendas: { title: "Vendas", eyebrow: "Recibos, pagamentos e caixa", icon: ReceiptText },
   fidelizacao: { title: "Fidelização", eyebrow: "Cartões, pontos e regras do programa", icon: BadgePercent },
-  relatorios: { title: "Relatorios", eyebrow: "Indicadores operacionais", icon: BarChart3 },
+  relatorios: { title: "Relatórios", eyebrow: "Indicadores operacionais", icon: BarChart3 },
   admin: { title: "Administração", eyebrow: "Utilizadores, definições e auditoria", icon: ShieldCheck }
 };
 
@@ -318,17 +317,17 @@ function PosPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () =>
 
           <form onSubmit={handleCardSearch} style={{ marginBottom: "12px" }}>
             <label style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", color: "#8e653f" }}>
-              Identificar Cartão / QR Code
+              Identificar cartão ou código QR
             </label>
             <div className="input-row" style={{ marginTop: "4px" }}>
               <QrCode size={16} />
               <input
-                placeholder="Escaneie QR ou digite PJLJ-CARD-..."
+                placeholder="Leia o código QR ou introduza o número do cartão"
                 value={cardSearchQuery}
                 onChange={(e) => setCardSearchQuery(e.target.value)}
               />
               <button type="submit" style={{ minHeight: "36px", padding: "0 10px" }} disabled={cardLookupMutation.isPending}>
-                <Search size={14} /> Leitura
+                <Search size={14} /> Ler cartão
               </button>
             </div>
           </form>
@@ -405,7 +404,7 @@ function PosPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () =>
           )}
 
           <div className="total-line">
-            <span>Total a Pagar</span>
+            <span>Total a pagar</span>
             <strong>{money(remainingTotal)}</strong>
           </div>
           {pointsDiscount > 0 && (
@@ -437,7 +436,7 @@ function ClientsPanel({ data, refresh }: { data: OperationsBootstrap; refresh: (
         <textarea name="notes" placeholder="Preferências, alergias, observações" />
       </FormPanel>
       <section className="tool-panel">
-        <SectionTitle icon={Users} title="CRM de Clientes" />
+        <SectionTitle icon={Users} title="Clientes registados" />
         <div className="data-list">
           {data.clients.map((client) => (
             <article
@@ -783,7 +782,7 @@ function ClientLoyaltyModal({
           ) : !historyQuery.data?.length ? (
             <div className="empty-state small">Nenhuma movimentação de fidelidade registada.</div>
           ) : (
-            <table className="ledger-table">
+            <div className="table-scroll"><table className="ledger-table">
               <thead>
                 <tr>
                   <th>Data</th>
@@ -806,7 +805,7 @@ function ClientLoyaltyModal({
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </section>
       </section>
@@ -847,18 +846,18 @@ function LoyaltyPanel({ data, refresh }: { data: OperationsBootstrap; refresh: (
 
   return (
     <div className="panel-grid">
-      <MetricCard label="Cartões Ativos" value={String(summary?.activeCardsCount ?? data.clients.filter((c) => c.loyaltyPoints > 0).length)} icon={CreditCard} />
-      <MetricCard label="Pontos em Circulação" value={`${summary?.totalPointsInCirculation ?? data.clients.reduce((s, c) => s + c.loyaltyPoints, 0)} pts`} icon={Award} />
-      <MetricCard label="Valor Equivalente (MT)" value={money(summary?.totalMonetaryEquivalent ?? 0)} icon={Wallet} />
-      <MetricCard label="Taxa de Resgate" value={`${summary?.redemptionRatePercent ?? 0}%`} icon={BadgePercent} />
+      <MetricCard label="Cartões ativos" value={String(summary?.activeCardsCount ?? data.clients.filter((c) => c.loyaltyPoints > 0).length)} icon={CreditCard} />
+      <MetricCard label="Pontos em circulação" value={`${summary?.totalPointsInCirculation ?? data.clients.reduce((s, c) => s + c.loyaltyPoints, 0)} pts`} icon={Award} />
+      <MetricCard label="Valor equivalente" value={money(summary?.totalMonetaryEquivalent ?? 0)} icon={Wallet} />
+      <MetricCard label="Taxa de resgate" value={`${summary?.redemptionRatePercent ?? 0}%`} icon={BadgePercent} />
 
       <section className="tool-panel wide">
         <div className="receipt-format-tabs" style={{ marginBottom: "16px" }}>
           <button type="button" className={activeTab === "ranking" ? "active" : ""} onClick={() => setActiveTab("ranking")}>
-            Cartões & Clientes ({data.clients.length})
+            Cartões e clientes ({data.clients.length})
           </button>
           <button type="button" disabled={!data.permissions.includes("settings.manage")} className={activeTab === "settings" ? "active" : ""} onClick={() => setActiveTab("settings")}>
-            Configurações do Programa
+            Configurações do programa
           </button>
         </div>
 
@@ -866,7 +865,7 @@ function LoyaltyPanel({ data, refresh }: { data: OperationsBootstrap; refresh: (
           <>
             <div className="search-bar-row" style={{ marginBottom: "12px" }}>
               <input
-                placeholder="Pesquisar cliente por nome, telefone ou código..."
+                placeholder="Pesquisar por nome, telefone ou código…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #d8d0c4" }}
@@ -912,25 +911,25 @@ function LoyaltyPanel({ data, refresh }: { data: OperationsBootstrap; refresh: (
             }}
           >
             <label>
-              Programa de Fidelidade Ativo
+              Programa de fidelidade
               <select name="enabled" defaultValue={String(settingsQuery.data?.enabled ?? true)}>
-                <option value="true">Sim (Ativo)</option>
-                <option value="false">Não (Inativo)</option>
+                <option value="true">Ativo</option>
+                <option value="false">Inativo</option>
               </select>
             </label>
 
             <label>
-              Cada X MT pagos gera pontos
+              Valor pago para atribuição de pontos (MT)
               <input name="earnRateAmount" type="number" step="0.01" min="0.01" defaultValue={settingsQuery.data?.earnRateAmount ?? 100} required />
             </label>
 
             <label>
-              Quantidade de Pontos gerados (Y pts)
+              Pontos atribuídos por intervalo
               <input name="earnRatePoints" type="number" min="1" defaultValue={settingsQuery.data?.earnRatePoints ?? 1} required />
             </label>
 
             <label>
-              Valor monetário de cada 1 Ponto (em MT)
+              Valor de cada ponto (MT)
               <input name="redemptionPointValue" type="number" step="0.01" min="0.01" defaultValue={settingsQuery.data?.redemptionPointValue ?? 1.0} required />
             </label>
 
@@ -955,7 +954,7 @@ function LoyaltyPanel({ data, refresh }: { data: OperationsBootstrap; refresh: (
             {settingsMutation.isSuccess && <p role="status">Regras guardadas. O POS já utiliza estes valores.</p>}
             <div className="button-row">
               <button type="submit" className="primary-action" disabled={settingsMutation.isPending}>
-                Guardar Regras de Fidelidade
+              Guardar regras de fidelidade
               </button>
             </div>
           </form>
@@ -999,9 +998,9 @@ function ReportsPanel({ data }: { data: OperationsBootstrap }) {
 function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () => void }) {
   const users = useQuery({ queryKey: ["users"], queryFn: listUsers });
   const roles = useQuery({ queryKey: ["roles"], queryFn: listRoles });
-  const settings = useQuery({ queryKey: ["settings"], queryFn: listSettings });
   const audit = useQuery({ queryKey: ["audit"], queryFn: listAudit });
   const queryClient = useQueryClient();
+  const [adminTab, setAdminTab] = useState<"business" | "users" | "audit">("business");
 
   const userMutation = useMutation({ mutationFn: createUser, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }) });
   const [adminMessage, setAdminMessage] = useState("");
@@ -1024,40 +1023,51 @@ function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
   return (
     <div className="admin-grid">
       {adminMessage && <div className="notice strong wide">{adminMessage}</div>}
-      <CashPanel key={data.cash?.id ?? "closed"} data={data} refresh={refresh}/>
+      <nav className="section-tabs wide" aria-label="Áreas de administração">
+        <button type="button" className={adminTab === "business" ? "active" : ""} onClick={()=>setAdminTab("business")}>Negócio e caixa</button>
+        <button type="button" className={adminTab === "users" ? "active" : ""} onClick={()=>setAdminTab("users")}>Utilizadores</button>
+        <button type="button" className={adminTab === "audit" ? "active" : ""} onClick={()=>setAdminTab("audit")}>Auditoria</button>
+      </nav>
 
-      <FormPanel title="Novo utilizador" icon={<UserPlus size={18} />} onSubmit={(values) => userMutation.mutateAsync({ name: values.name, email: values.email, phone: values.phone, password: values.password, roles: [values.role] })}>
-        <input name="name" placeholder="Nome" required />
-        <input name="email" type="email" placeholder="Email" required />
-        <input name="phone" placeholder="Telefone" />
-        <input name="password" type="password" minLength={12} autoComplete="new-password" placeholder="Palavra-passe (mínimo 12 caracteres)" required />
-        <Select name="role" options={(roles.data ?? []).map((role) => [role.key, role.name])} />
-      </FormPanel>
-      <BusinessSettingsForm key={JSON.stringify(data.settings)} profile={data.settings} refresh={refresh} />
-      <section className="tool-panel">
-        <SectionTitle icon={Users} title="Utilizadores" />
-        <div className="data-list">
-          {(users.data ?? []).map((user) => (
-            <article className="action-line" key={user.id}>
-              <div>
-                <strong>{user.name}</strong>
-                <span>{user.email} · {user.roles.join(", ")}</span>
-              </div>
-              <button className="danger-button" type="button" onClick={() => confirmDeactivate(user)} disabled={deactivateMutation.isPending}>
-                <Trash2 size={16} /> Desativar
-              </button>
-            </article>
-          ))}
-        </div>
-      </section>
-      <section className="tool-panel wide">
-        <SectionTitle icon={ShieldCheck} title="Auditoria recente" />
-        <div className="data-list two-col">
-          {(audit.data ?? []).slice(0, 20).map((event) => (
-            <article key={event.id}><strong>{event.action} · {event.entity}</strong><span>{new Date(event.createdAt).toLocaleString("pt-MZ")}</span></article>
-          ))}
-        </div>
-      </section>
+      {adminTab === "business" && <div className="admin-tab-content wide">
+        <BusinessSettingsForm key={JSON.stringify(data.settings)} profile={data.settings} refresh={refresh} />
+        <CashPanel key={data.cash?.id ?? "closed"} data={data} refresh={refresh}/>
+      </div>}
+
+      {adminTab === "users" && <div className="admin-section-grid wide">
+        <FormPanel title="Novo utilizador" icon={<UserPlus size={18} />} onSubmit={(values) => userMutation.mutateAsync({ name: values.name, email: values.email, phone: values.phone, password: values.password, roles: [values.role] })}>
+          <input name="name" placeholder="Nome" required />
+          <input name="email" type="email" placeholder="E-mail" required />
+          <input name="phone" placeholder="Telefone" />
+          <input name="password" type="password" minLength={12} autoComplete="new-password" placeholder="Palavra-passe (mínimo 12 caracteres)" required />
+          <Select name="role" options={(roles.data ?? []).map((role) => [role.key, role.name])} />
+        </FormPanel>
+        <section className="tool-panel">
+          <SectionTitle icon={Users} title="Utilizadores ativos" />
+          <div className="data-list">
+            {(users.data ?? []).map((user) => (
+              <article className="action-line" key={user.id}>
+                <div>
+                  <strong>{user.name}</strong>
+                  <span>{user.email} · {user.roles.join(", ")}</span>
+                </div>
+                <button className="danger-button" type="button" onClick={() => confirmDeactivate(user)} disabled={deactivateMutation.isPending}>
+                  <Trash2 size={16} /> Desativar
+                </button>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>}
+
+      {adminTab === "audit" && <section className="tool-panel wide">
+          <SectionTitle icon={ShieldCheck} title="Auditoria recente" />
+          <div className="data-list two-col audit-list">
+            {(audit.data ?? []).slice(0, 20).map((event) => (
+              <article key={event.id}><strong>{event.action.replace(/_/g, " ")} · {event.entity}</strong><span>{new Date(event.createdAt).toLocaleString("pt-MZ")}</span></article>
+            ))}
+          </div>
+        </section>}
     </div>
   );
 }
