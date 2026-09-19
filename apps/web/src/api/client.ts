@@ -416,6 +416,28 @@ export function updateBusinessProfile(payload: Partial<BusinessSettings>) {
   return api<Setting>("/settings/business-profile", { method: "PUT", body: JSON.stringify(payload) });
 }
 
+export type ProductionResetResult = {
+  ok: boolean;
+  resetAt: string;
+  reason: string;
+  cleared: {
+    sales: number;
+    cashSessions: number;
+    appointments: number;
+    queueEntries: number;
+    clients: number;
+    loyaltyCards: number;
+    loyaltyMovements: number;
+    stockMovements: number;
+    productsResetToZero: number;
+    previousAuditEvents: number;
+  };
+};
+
+export function resetProductionData(payload: {reason: string; confirmation: string}) {
+  return api<ProductionResetResult>("/settings/production-reset", {method: "POST", body: JSON.stringify(payload)});
+}
+
 export type AuditLog = {
   id: string;
   action: string;

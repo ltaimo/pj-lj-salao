@@ -17,6 +17,7 @@ import {
   QrCode,
   ReceiptText,
   RefreshCw,
+  RotateCcw,
   Scissors,
   Search,
   Share2,
@@ -25,6 +26,7 @@ import {
   Sliders,
   Sparkles,
   Trash2,
+  TriangleAlert,
   Unlock,
   UserPlus,
   Users,
@@ -67,6 +69,7 @@ import {
   operationsBootstrap,
   removeProduct,
   replaceLoyaltyCard,
+  resetProductionData,
   updateBusinessProfile,
   updateLoyaltyCardStatus,
   updateLoyaltySettings,
@@ -1000,7 +1003,10 @@ function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
   const roles = useQuery({ queryKey: ["roles"], queryFn: listRoles });
   const audit = useQuery({ queryKey: ["audit"], queryFn: listAudit });
   const queryClient = useQueryClient();
-  const [adminTab, setAdminTab] = useState<"business" | "users" | "audit">("business");
+  const [adminTab, setAdminTab] = useState<"business" | "users" | "audit" | "reset">("business");
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetReason, setResetReason] = useState("");
+  const [resetConfirmation, setResetConfirmation] = useState("");
 
   const userMutation = useMutation({ mutationFn: createUser, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }) });
   const [adminMessage, setAdminMessage] = useState("");
@@ -1012,6 +1018,18 @@ function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
       refresh();
     },
     onError: (error) => setAdminMessage(error instanceof Error ? error.message : "Não foi possível desativar o utilizador.")
+  });
+  const resetMutation = useMutation({
+    mutationFn: resetProductionData,
+    onSuccess: (result) => {
+      setAdminMessage(`Reposição concluída. Foram removidas ${result.cleared.sales} vendas e ${result.cleared.clients} clientes; o stock foi colocado a zero.`);
+      setResetOpen(false);
+      setResetReason("");
+      setResetConfirmation("");
+      queryClient.invalidateQueries();
+      refresh();
+    },
+    onError: (error) => setAdminMessage(error instanceof Error ? error.message : "Não foi possível concluir a reposição.")
   });
 
 
@@ -1027,6 +1045,7 @@ function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
         <button type="button" className={adminTab === "business" ? "active" : ""} onClick={()=>setAdminTab("business")}>Negócio e caixa</button>
         <button type="button" className={adminTab === "users" ? "active" : ""} onClick={()=>setAdminTab("users")}>Utilizadores</button>
         <button type="button" className={adminTab === "audit" ? "active" : ""} onClick={()=>setAdminTab("audit")}>Auditoria</button>
+        <button type="button" className={adminTab === "reset" ? "active danger-tab" : "danger-tab"} onClick={()=>setAdminTab("reset")}>Reposição</button>
       </nav>
 
       {adminTab === "business" && <div className="admin-tab-content wide">
@@ -1068,6 +1087,76 @@ function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
             ))}
           </div>
         </section>}
+
+      {adminTab === "reset" && <section className="tool-panel wide reset-zone">
+        <div className="reset-zone-heading">
+          <span className="reset-zone-icon"><TriangleAlert size={22}/></span>
+          <div>
+            <p className="eyebrow">INÍCIO DE PRODUÇÃO</p>
+            <h2>Repor dados operacionais</h2>
+            <p>Use esta opção uma única vez, depois dos testes, para iniciar a operação real com os indicadores a zero.</p>
+          </div>
+        </div>
+        <div className="reset-scope-grid">
+          <div>
+            <strong>Será eliminado ou colocado a zero</strong>
+            <ul>
+              <li>Vendas, recibos e pagamentos</li>
+              <li>Caixas, marcações e fila de atendimento</li>
+              <li>Clientes, cartões e movimentos de fidelidade</li>
+              <li>Movimentos e quantidades atuais de stock</li>
+              <li>Histórico de auditoria anterior</li>
+            </ul>
+          </div>
+          <div>
+            <strong>Será preservado</strong>
+            <ul>
+              <li>Utilizadores, perfis e permissões</li>
+              <li>Serviços, produtos e categorias</li>
+              <li>Profissionais</li>
+              <li>Configurações do negócio e da fidelidade</li>
+              <li>Um novo registo com o motivo da reposição</li>
+            </ul>
+          </div>
+        </div>
+        <div className="reset-zone-action">
+          <p>O motivo é obrigatório e ficará guardado na auditoria.</p>
+          <button type="button" className="danger-button reset-trigger" onClick={()=>setResetOpen(true)}>
+            <RotateCcw size={17}/> Repor dados para produção
+          </button>
+        </div>
+      </section>}
+
+      {resetOpen && <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+        <form className="tool-panel reset-modal" onSubmit={(event) => {
+          event.preventDefault();
+          resetMutation.mutate({reason: resetReason.trim(), confirmation: resetConfirmation});
+        }}>
+          <button type="button" className="icon-close" aria-label="Fechar" disabled={resetMutation.isPending} onClick={()=>setResetOpen(false)}><X size={18}/></button>
+          <span className="reset-modal-icon"><TriangleAlert size={24}/></span>
+          <div>
+            <p className="eyebrow">AÇÃO IRREVERSÍVEL</p>
+            <h2 id="reset-title">Confirmar reposição</h2>
+            <p>Esta operação limpa os dados operacionais da filial atual. As configurações, o catálogo e os acessos serão mantidos.</p>
+          </div>
+          <label>
+            Motivo da reposição
+            <textarea value={resetReason} onChange={(event)=>setResetReason(event.target.value)} minLength={10} maxLength={500} rows={4} placeholder="Ex.: Encerramento dos testes e preparação para o primeiro dia de produção." required/>
+            <small>{resetReason.trim().length}/500 · mínimo de 10 caracteres</small>
+          </label>
+          <label>
+            Para confirmar, escreva <strong>REINICIAR PRODUÇÃO</strong>
+            <input value={resetConfirmation} onChange={(event)=>setResetConfirmation(event.target.value)} autoComplete="off" required/>
+          </label>
+          {resetMutation.isError && <p className="form-error" role="alert">{resetMutation.error.message}</p>}
+          <div className="button-row reset-modal-actions">
+            <button type="button" disabled={resetMutation.isPending} onClick={()=>setResetOpen(false)}>Cancelar</button>
+            <button type="submit" className="danger-button" disabled={resetMutation.isPending || resetReason.trim().length < 10 || resetConfirmation !== "REINICIAR PRODUÇÃO"}>
+              <RotateCcw size={16}/>{resetMutation.isPending ? " A repor…" : " Repor definitivamente"}
+            </button>
+          </div>
+        </form>
+      </div>}
     </div>
   );
 }
