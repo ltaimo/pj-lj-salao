@@ -6,3 +6,11 @@ coverage
 *.log
 docker
 docker-compose.yml
+.audit
+**/.env*
+tests
+scripts
+*.png
+chrome-*.txt
+supabase-*.txt
+sky-apps.json

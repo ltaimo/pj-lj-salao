@@ -120,15 +120,26 @@ export type CashSession = {
 } | null;
 
 export type Sale = {
+  businessProfile?: BusinessSettings;
   id: string;
   receiptNumber: string;
-  total: string;
-  paidAmount: string;
-  changeAmount: string;
+  subtotal?: string | number;
+  discount?: string | number;
+  tipAmount?: string | number;
+  total: string | number;
+  paidAmount: string | number;
+  changeAmount: string | number;
   createdAt: string;
   client?: Client;
-  items: Array<{ description: string; quantity: string; unitPrice: string; total: string; type: string }>;
-  payments: Array<{ method: string; amount: string }>;
+  items: Array<{
+    description: string;
+    quantity: string | number;
+    unitPrice: string | number;
+    total: string | number;
+    type: string;
+    employee?: { id?: string; name?: string; role?: string } | null;
+  }>;
+  payments: Array<{ id?: string; method: string; amount: string | number }>;
 };
 
 export type AppUser = {
@@ -170,7 +181,9 @@ export type OperationsBootstrap = {
   appointments: Appointment[];
   cash: CashSession;
   sales: Sale[];
-  settings?: unknown;
+  permissions: string[];
+  settings: BusinessSettings;
+  loyaltySettings: LoyaltySettings;
 };
 
 const ACCESS_TOKEN_KEY = "pjlj.v2.accessToken";
@@ -182,17 +195,19 @@ export function getAccessToken() {
   return localStorage.getItem(ACCESS_TOKEN_KEY) ?? sessionStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
+export function getRefreshToken() {
+  return localStorage.getItem(REFRESH_TOKEN_KEY) ?? sessionStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
 export function hasSession() {
   return Boolean(getAccessToken());
 }
 
-export function setSession(tokens: LoginResponse, remember: boolean) {
-  const targetStorage = remember ? localStorage : sessionStorage;
-  const staleStorage = remember ? sessionStorage : localStorage;
-  staleStorage.removeItem(ACCESS_TOKEN_KEY);
-  staleStorage.removeItem(REFRESH_TOKEN_KEY);
-  targetStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
-  targetStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+export function setSession(tokens: { accessToken: string; refreshToken: string }, remember: boolean = true) {
+  clearSession();
+  const storage = remember ? localStorage : sessionStorage;
+  storage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
+  storage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
 }
 
 export function clearSession() {
@@ -213,21 +228,64 @@ function redirectToLogin() {
   }
 }
 
-function authHeaders() {
-  const token = getAccessToken();
-  if (!token) {
-    throw new Error("Sessão necessária");
+let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAuthToken(): Promise<string | null> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken })
+    });
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    if (data?.accessToken && data?.refreshToken) {
+      setSession(data, Boolean(localStorage.getItem(REFRESH_TOKEN_KEY)));
+      return data.accessToken;
+    }
+    return null;
+  } catch {
+    return null;
   }
-  return { Authorization: `Bearer ${token}` };
 }
 
 async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const headers = {
+  const token = getAccessToken();
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...authHeaders(),
-    ...(options.headers ?? {})
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...((options.headers as Record<string, string>) ?? {})
   };
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+
+  let response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+
+  if (response.status === 401) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      refreshPromise = refreshAuthToken();
+    }
+    const newToken = await refreshPromise;
+    isRefreshing = false;
+    refreshPromise = null;
+
+    if (newToken) {
+      const retryHeaders = {
+        ...headers,
+        Authorization: `Bearer ${newToken}`
+      };
+      response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers: retryHeaders });
+    } else {
+      redirectToLogin();
+      throw new Error("Sessão expirada. Entre novamente para continuar.");
+    }
+  }
+
   if (!response.ok) {
     if (response.status === 401) {
       redirectToLogin();
@@ -235,21 +293,23 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
     }
     throw new Error(await friendlyError(response, "Não foi possível concluir a operação."));
   }
+
   return response.json();
 }
 
-export async function dashboardSummary(): Promise<DashboardSummary> {
-  const response = await fetch(`${API_BASE_URL}/dashboard/summary`, {
-    headers: authHeaders()
-  });
-  if (!response.ok) {
-    if (response.status === 401) {
-      redirectToLogin();
-      throw new Error("Sessão expirada. Entre novamente para continuar.");
-    }
-    throw new Error(await friendlyError(response, "Não foi possível carregar os indicadores."));
-  }
-  return response.json();
+export function dashboardSummary(): Promise<DashboardSummary> {
+  return api<DashboardSummary>("/dashboard/summary");
+}
+
+export function currentUser() {
+  return api<{id:string; name:string; email:string; permissions:string[]; organizationName:string; branchName:string}>("/auth/me");
+}
+
+export function changePassword(payload: {currentPassword:string;newPassword:string}) {
+  return api<{ok:boolean}>("/auth/change-password",{method:"POST",body:JSON.stringify(payload)});
+}
+export function logoutSession() {
+  return api<{ok:boolean}>("/auth/logout",{method:"POST"});
 }
 
 async function friendlyError(response: Response, fallback: string) {
@@ -320,6 +380,7 @@ export function createService(payload: { name: string; categoryName: string; dur
 }
 
 export function createSale(payload: {
+  idempotencyKey?: string;
   clientId?: string;
   items: Array<{ type: "SERVICE" | "PRODUCT"; serviceId?: string; productId?: string; employeeId?: string; quantity: number }>;
   payments: Array<{ method: string; amount: number; reference?: string }>;
@@ -349,10 +410,119 @@ export function listSettings() {
   return api<Setting[]>("/settings");
 }
 
-export function updateBusinessProfile(payload: Record<string, unknown>) {
+export type BusinessSettings = {name: string; nuit: string; phone: string; whatsapp: string; address: string; email: string; footerText: string; receiptFormat: "80mm" | "A4"; paymentMethods: string[]; maxDiscountPercent: number; requireOpenCash: boolean; defaultOpeningBalance: number};
+
+export function updateBusinessProfile(payload: Partial<BusinessSettings>) {
   return api<Setting>("/settings/business-profile", { method: "PUT", body: JSON.stringify(payload) });
 }
 
+export type AuditLog = {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  entity?: string;
+  userId?: string;
+  createdAt: string;
+  details?: any;
+};
+
 export function listAudit() {
-  return api<AuditEvent[]>("/audit");
+  return api<AuditLog[]>("/audit");
+}
+
+export type LoyaltyCardStatus = "ACTIVE" | "BLOCKED" | "SUSPENDED" | "CANCELLED";
+
+export type LoyaltyMovementType =
+  | "EARNED"
+  | "REDEEMED"
+  | "MANUAL_ADJUSTMENT"
+  | "REVERSED"
+  | "EXPIRED"
+  | "PROMOTIONAL";
+
+export type LoyaltyCard = {
+  id: string;
+  cardNumber: string;
+  qrCode: string;
+  status: LoyaltyCardStatus;
+  issuedAt: string;
+  client?: Client;
+};
+
+export type LoyaltyMovement = {
+  id: string;
+  type: LoyaltyMovementType;
+  points: number;
+  beforeBalance: number;
+  afterBalance: number;
+  monetaryValue: number;
+  reason?: string;
+  createdAt: string;
+  sale?: { receiptNumber: string; total: string };
+};
+
+export type LoyaltySettings = {
+  enabled: boolean;
+  earnRateAmount: number;
+  earnRatePoints: number;
+  redemptionPointValue: number;
+  minSaleAmountToEarn: number;
+  minPointsToRedeem: number;
+  maxPercentPayableWithPoints: number;
+  allowPointsEarningOnPointsPaid: boolean;
+};
+
+export type LoyaltyLookupResult = {
+  card: LoyaltyCard | null;
+  client: Client;
+  monetaryValue?: number;
+  settings?: LoyaltySettings;
+};
+
+export function lookupLoyaltyCard(query: string) {
+  return api<LoyaltyLookupResult>(`/loyalty/cards/lookup?query=${encodeURIComponent(query)}`);
+}
+
+export function issueLoyaltyCard(clientId: string) {
+  return api<LoyaltyCard>("/loyalty/cards/issue", { method: "POST", body: JSON.stringify({ clientId }) });
+}
+
+export function replaceLoyaltyCard(clientId: string, reason?: string) {
+  return api<LoyaltyCard>("/loyalty/cards/replace", { method: "POST", body: JSON.stringify({ clientId, reason }) });
+}
+
+export function updateLoyaltyCardStatus(cardId: string, status: LoyaltyCardStatus, reason?: string) {
+  return api<LoyaltyCard>(`/loyalty/cards/${cardId}/status`, { method: "PATCH", body: JSON.stringify({ status, reason }) });
+}
+
+export function manualLoyaltyAdjustment(clientId: string, points: number, reason: string) {
+  return api<{ movement: LoyaltyMovement; client: Client; card: LoyaltyCard }>("/loyalty/movements/adjust", {
+    method: "POST",
+    body: JSON.stringify({ clientId, points, reason })
+  });
+}
+
+export function getLoyaltyHistory(clientId: string) {
+  return api<LoyaltyMovement[]>(`/loyalty/clients/${clientId}/history`);
+}
+
+export function getLoyaltySettings() {
+  return api<LoyaltySettings>("/loyalty/settings");
+}
+
+export function updateLoyaltySettings(settings: Partial<LoyaltySettings>) {
+  return api<LoyaltySettings>("/loyalty/settings", { method: "PUT", body: JSON.stringify(settings) });
+}
+
+export function getLoyaltySummaryReport() {
+  return api<{
+    activeCardsCount: number;
+    totalClientsEnrolled: number;
+    totalPointsInCirculation: number;
+    totalMonetaryEquivalent: number;
+    pointsEarnedThisMonth: number;
+    pointsRedeemedThisMonth: number;
+    redemptionRatePercent: number;
+  }>("/loyalty/reports/summary");
 }

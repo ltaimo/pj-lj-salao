@@ -117,16 +117,13 @@ async function main() {
   }
 
   const email = process.env.SEED_ADMIN_EMAIL ?? "admin@pjlj.local";
-  const password = process.env.SEED_ADMIN_PASSWORD ?? "change-me-before-production";
-  const passwordHash = await argon2.hash(password);
+  const existingAdmin = await prisma.user.findUnique({where:{email}});
+  const password = process.env.SEED_ADMIN_PASSWORD;
+  if (!existingAdmin && (!password || password.length < 12 || password === "change-me-before-production")) throw new Error("Defina SEED_ADMIN_PASSWORD com uma palavra-passe forte antes de criar o administrador.");
+  const passwordHash = existingAdmin?.passwordHash ?? await argon2.hash(password!);
   const admin = await prisma.user.upsert({
     where: { email },
-    update: {
-      passwordHash,
-      organizationId: organization.id,
-      branchId: branch.id,
-      status: "ACTIVE"
-    },
+    update: {},
     create: {
       email,
       name: "Administrador PJ&LJ",

@@ -14,7 +14,6 @@
     "build": "npm --workspaces run build",
     "test": "npm --workspaces --if-present run test",
     "lint": "npm --workspaces --if-present run lint",
-    "postinstall": "npm run db:generate",
     "db:generate": "npm --workspace @pjlj/api run prisma:generate",
     "db:migrate": "npm --workspace @pjlj/api run prisma:migrate",
     "db:deploy": "npm --workspace @pjlj/api run prisma:deploy",
@@ -32,5 +31,12 @@
   },
   "engines": {
     "node": ">=20.18.0"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.2.5",
+    "@nestjs/platform-express": "^11.2.5"
+  },
+  "overrides": {
+    "multer": "2.4.0"
   }
 }

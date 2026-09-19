@@ -1,4 +1,4 @@
-import { Controller, Get, Req, UseGuards } from "@nestjs/common";
+import { BadRequestException, Controller, Get, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
 import { RequirePermissions } from "../common/permissions.decorator";
@@ -23,98 +23,97 @@ export class DashboardController {
   @RequirePermissions("dashboard.view")
   async summary(@Req() request: AuthenticatedRequest) {
     const { organizationId, branchId } = request.user;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    const [users, branches, auditLogs, sales, servicesCompleted, clientsServed, waitingClients, availableProfessionals, lowStockProducts, payments, cash] = await Promise.all([
-      this.prisma.user.count({
-        where: {
-          organizationId: organizationId ?? undefined,
-          branchId: branchId ?? undefined,
-          deletedAt: null
-        }
-      }),
-      this.prisma.branch.count({
-        where: {
-          organizationId: organizationId ?? undefined,
-          active: true
-        }
-      }),
-      this.prisma.auditLog.count({
-        where: {
-          organizationId: organizationId ?? undefined,
-          branchId: branchId ?? undefined
-        }
-      }),
-      this.prisma.sale.aggregate({
-        where: {
+    if (!organizationId || !branchId) throw new BadRequestException("Utilizador sem organização ou filial.");
+    const maputo = new Date(Date.now() + 2 * 3600000);
+    const today = new Date(Date.UTC(maputo.getUTCFullYear(), maputo.getUTCMonth(), maputo.getUTCDate()) - 2 * 3600000);
+    const tomorrow = new Date(today.getTime() + 86400000);
+    const users = await this.prisma.user.count({
+      where: {
+        organizationId: organizationId ?? undefined,
+        branchId: branchId ?? undefined,
+        deletedAt: null
+        ,status: "ACTIVE"
+      }
+    });
+    const branches = await this.prisma.branch.count({
+      where: {
+        organizationId: organizationId ?? undefined,
+        active: true
+      }
+    });
+    const auditLogs = await this.prisma.auditLog.count({
+      where: {
+        organizationId: organizationId ?? undefined,
+        branchId: branchId ?? undefined
+      }
+    });
+    const sales = await this.prisma.sale.aggregate({
+      where: {
+        organizationId: organizationId ?? undefined,
+        branchId: branchId ?? undefined,
+        status: "PAID",
+        createdAt: { gte: today, lt: tomorrow }
+      },
+      _sum: { total: true }
+    });
+    const servicesCompleted = await this.prisma.saleItem.count({
+      where: {
+        type: "SERVICE",
+        sale: {
           organizationId: organizationId ?? undefined,
           branchId: branchId ?? undefined,
           status: "PAID",
           createdAt: { gte: today, lt: tomorrow }
-        },
-        _sum: { total: true }
-      }),
-      this.prisma.saleItem.count({
-        where: {
-          type: "SERVICE",
-          sale: {
-            organizationId: organizationId ?? undefined,
-            branchId: branchId ?? undefined,
-            status: "PAID",
-            createdAt: { gte: today, lt: tomorrow }
-          }
         }
-      }),
-      this.prisma.sale.count({
-        where: {
-          organizationId: organizationId ?? undefined,
-          branchId: branchId ?? undefined,
-          clientId: { not: null },
-          createdAt: { gte: today, lt: tomorrow }
-        }
-      }),
-      this.prisma.queueEntry.count({
-        where: {
-          organizationId: organizationId ?? undefined,
-          branchId: branchId ?? undefined,
-          status: { in: ["WAITING", "CALLED"] }
-        }
-      }),
-      this.prisma.employee.count({
-        where: {
-          organizationId: organizationId ?? undefined,
-          branchId: branchId ?? undefined,
-          active: true
-        }
-      }),
-      this.prisma.product.findMany({
-        where: {
-          organizationId: organizationId ?? undefined,
-          branchId: branchId ?? undefined,
-          active: true
-        },
-        select: { stock: true, minimumStock: true }
-      }),
-      this.prisma.payment.groupBy({
-        by: ["method"],
-        where: {
-          organizationId: organizationId ?? undefined,
-          branchId: branchId ?? undefined,
-          createdAt: { gte: today, lt: tomorrow }
-        },
-        _sum: { amount: true }
-      }),
-      this.prisma.cashSession.findFirst({
-        where: {
-          organizationId: organizationId ?? undefined,
-          branchId: branchId ?? undefined,
-          status: "OPEN"
-        },
-        orderBy: { openedAt: "desc" }
-      })
-    ]);
+      }
+    });
+    const clientsServed = await this.prisma.sale.count({
+      where: {
+        organizationId: organizationId ?? undefined,
+        branchId: branchId ?? undefined,
+        clientId: { not: null },
+        createdAt: { gte: today, lt: tomorrow }
+      }
+    });
+    const waitingClients = await this.prisma.queueEntry.count({
+      where: {
+        organizationId: organizationId ?? undefined,
+        branchId: branchId ?? undefined,
+        status: { in: ["WAITING", "CALLED"] }
+      }
+    });
+    const availableProfessionals = await this.prisma.employee.count({
+      where: {
+        organizationId: organizationId ?? undefined,
+        branchId: branchId ?? undefined,
+        active: true
+      }
+    });
+    const lowStockProducts = await this.prisma.product.findMany({
+      where: {
+        organizationId: organizationId ?? undefined,
+        branchId: branchId ?? undefined,
+        active: true
+      },
+      select: { stock: true, minimumStock: true }
+    });
+    const payments = await this.prisma.payment.groupBy({
+      by: ["method"],
+      where: {
+        organizationId: organizationId ?? undefined,
+        branchId: branchId ?? undefined,
+        createdAt: { gte: today, lt: tomorrow }
+      },
+      _sum: { amount: true }
+    });
+    const cash = await this.prisma.cashSession.findFirst({
+      where: {
+        organizationId: organizationId ?? undefined,
+        branchId: branchId ?? undefined,
+        status: "OPEN"
+      },
+      orderBy: { openedAt: "desc" }
+    });
     const criticalStock = lowStockProducts.filter((product) => Number(product.stock) <= Number(product.minimumStock)).length;
 
     return {

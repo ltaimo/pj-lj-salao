@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import * as argon2 from "argon2";
 import { AuditService } from "../audit/audit.service";
@@ -51,18 +51,23 @@ export class UsersController {
   @Post()
   @RequirePermissions("staff.manage")
   async create(
-    @Req() request: { user: { id: string; organizationId?: string; branchId?: string } },
+    @Req() request: { user: { id: string; organizationId?: string; branchId?: string; permissions?: string[] } },
     @Body() body: { name?: string; email?: string; phone?: string; password?: string; roles?: string[] }
   ) {
     const name = body.name?.trim();
     const email = body.email?.trim().toLowerCase();
-    if (!name || !email || !body.password || body.password.length < 8) {
-      throw new BadRequestException("Nome, email e palavra-passe com mínimo de 8 caracteres são obrigatórios");
+    if (!request.user.organizationId || !request.user.branchId) throw new BadRequestException("Utilizador sem organização ou filial.");
+    if (!name || !email || !body.password || body.password.length < 12) {
+      throw new BadRequestException("Nome, email e palavra-passe com mínimo de 12 caracteres são obrigatórios");
     }
     const passwordHash = await argon2.hash(body.password);
     const roles = await this.prisma.role.findMany({
-      where: { key: { in: body.roles?.length ? body.roles : ["receptionist"] } }
+      where: { key: { in: body.roles?.length ? body.roles : ["receptionist"] } },
+      include: {rolePermissions: {include: {permission: true}}}
     });
+    if (!roles.length || roles.length !== new Set(body.roles?.length ? body.roles : ["receptionist"]).size) throw new BadRequestException("Selecione um perfil válido.");
+    if (roles.some(role => role.rolePermissions.some(rp => !request.user.permissions?.includes(rp.permission.key)))) throw new ForbiddenException("Não pode atribuir permissões superiores às suas.");
+    if (await this.prisma.user.findUnique({where: {email}})) throw new BadRequestException("Já existe um utilizador com este email.");
     const user = await this.prisma.user.create({
       data: {
         name,

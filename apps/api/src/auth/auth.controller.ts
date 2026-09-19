@@ -28,6 +28,13 @@ export class AuthController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
+  @Post("change-password")
+  changePassword(@Req() req: {user:{id:string}}, @Body() body:{currentPassword:string;newPassword:string}) {
+    return this.auth.changePassword(req.user.id,body.currentPassword,body.newPassword);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Get("me")
   me(@Req() request: { user: unknown }) {
     return request.user;

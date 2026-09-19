@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { login, setSession } from "../api/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 const schema = z.object({
   email: z.string().email(),
@@ -15,6 +16,7 @@ const schema = z.object({
 type LoginForm = z.infer<typeof schema>;
 
 export function LoginPage() {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [message, setMessage] = useState<string>();
   const [showPassword, setShowPassword] = useState(false);
@@ -31,6 +33,7 @@ export function LoginPage() {
     setMessage(undefined);
     try {
       const result = await login(values.email, values.password);
+      queryClient.clear();
       setSession(result, values.remember);
       setMessage(`Sessão iniciada como ${result.user.name}`);
       navigate("/");

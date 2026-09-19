@@ -57,7 +57,24 @@ enum PaymentMethod {
   EMOLA
   CARD
   BANK_TRANSFER
+  LOYALTY_POINTS
   OTHER
+}
+
+enum LoyaltyCardStatus {
+  ACTIVE
+  BLOCKED
+  SUSPENDED
+  CANCELLED
+}
+
+enum LoyaltyMovementType {
+  EARNED
+  REDEEMED
+  MANUAL_ADJUSTMENT
+  REVERSED
+  EXPIRED
+  PROMOTIONAL
 }
 
 enum StockMovementType {
@@ -108,6 +125,8 @@ model Organization {
   payments  Payment[]
   cashSessions CashSession[]
   stockMovements StockMovement[]
+  loyaltyCards LoyaltyCard[]
+  loyaltyMovements LoyaltyMovement[]
 
   @@map("organizations")
 }
@@ -139,6 +158,8 @@ model Branch {
   payments     Payment[]
   cashSessions CashSession[]
   stockMovements StockMovement[]
+  loyaltyCards LoyaltyCard[]
+  loyaltyMovements LoyaltyMovement[]
 
   @@unique([organizationId, code])
   @@map("branches")
@@ -282,6 +303,8 @@ model Client {
   queueEntries QueueEntry[]
   appointments Appointment[]
   sales        Sale[]
+  loyaltyCards LoyaltyCard[]
+  loyaltyMovements LoyaltyMovement[]
 
   @@unique([organizationId, code])
   @@index([organizationId, branchId, phone])
@@ -486,6 +509,8 @@ model Sale {
   branchId       String
   clientId       String?
   receiptNumber  String     @unique
+  idempotencyKey String?
+  businessProfile Json?
   status         SaleStatus @default(PAID)
   subtotal       Decimal    @db.Decimal(12, 2)
   discount       Decimal    @default(0) @db.Decimal(12, 2)
@@ -503,8 +528,10 @@ model Sale {
   client       Client?      @relation(fields: [clientId], references: [id])
   items        SaleItem[]
   payments     Payment[]
+  loyaltyMovements LoyaltyMovement[]
 
   @@index([organizationId, branchId, createdAt])
+  @@unique([organizationId, branchId, idempotencyKey])
   @@map("sales")
 }
 
@@ -568,4 +595,54 @@ model CashSession {
 
   @@index([organizationId, branchId, status])
   @@map("cash_sessions")
+}
+
+model LoyaltyCard {
+  id             String            @id @default(uuid())
+  organizationId String
+  branchId       String
+  clientId       String
+  cardNumber     String            @unique
+  qrCode         String            @unique
+  status         LoyaltyCardStatus @default(ACTIVE)
+  issuedAt       DateTime          @default(now())
+  issuedById     String?
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  branch       Branch            @relation(fields: [branchId], references: [id])
+  client       Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  movements    LoyaltyMovement[]
+
+  @@unique([organizationId, cardNumber])
+  @@unique([organizationId, qrCode])
+  @@index([organizationId, branchId, status])
+  @@map("loyalty_cards")
+}
+
+model LoyaltyMovement {
+  id             String              @id @default(uuid())
+  organizationId String
+  branchId       String
+  clientId       String
+  cardId         String
+  type           LoyaltyMovementType
+  points         Int
+  beforeBalance  Int
+  afterBalance   Int
+  monetaryValue  Decimal             @default(0) @db.Decimal(12, 2)
+  saleId         String?
+  createdById    String?
+  reason         String?
+  createdAt      DateTime            @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  branch       Branch       @relation(fields: [branchId], references: [id])
+  client       Client       @relation(fields: [clientId], references: [id])
+  card         LoyaltyCard  @relation(fields: [cardId], references: [id])
+  sale         Sale?        @relation(fields: [saleId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, branchId, clientId, createdAt])
+  @@index([cardId, createdAt])
+  @@map("loyalty_movements")
 }

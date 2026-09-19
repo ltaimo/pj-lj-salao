@@ -5,6 +5,8 @@ import { AuditService } from "../audit/audit.service";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
 import { PermissionsGuard } from "../common/permissions.guard";
 import { RequirePermissions } from "../common/permissions.decorator";
+import { lockOperations } from "../common/operation-lock";
+import { businessSchema, getBusinessSettings } from "./business-settings";
 import { PrismaService } from "../common/prisma.service";
 
 @ApiTags("settings")
@@ -40,42 +42,15 @@ export class SettingsController {
     if (!organizationId || !branchId) {
       throw new BadRequestException("Utilizador sem organizacao ou filial");
     }
-    const value = JSON.parse(JSON.stringify(body)) as Prisma.InputJsonValue;
-    const before = await this.prisma.setting.findUnique({
-      where: {
-        organizationId_branchId_key: {
-          organizationId,
-          branchId,
-          key: "business.profile"
-        }
-      }
-    });
-    const setting = await this.prisma.setting.upsert({
-      where: {
-        organizationId_branchId_key: {
-          organizationId,
-          branchId,
-          key: "business.profile"
-        }
-      },
-      update: { value },
-      create: {
-        organizationId,
-        branchId,
-        key: "business.profile",
-        value
-      }
-    });
-    await this.audit.record({
-      userId: request.user.id,
-      organizationId: request.user.organizationId,
-      branchId: request.user.branchId,
-      action: "UPDATE",
-      entity: "settings",
-      entityId: setting.id,
-      before,
-      after: setting
-    });
-    return setting;
+    const parsed = businessSchema.partial().safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Configurações inválidas. Verifique os campos e selecione pelo menos um pagamento.");
+    return this.prisma.$transaction(async tx => {
+      await lockOperations(tx, organizationId);
+      const before = await getBusinessSettings(tx, {organizationId,branchId});
+      const value = businessSchema.parse({...before,...parsed.data});
+      const setting = await tx.setting.upsert({where:{organizationId_branchId_key:{organizationId,branchId,key:"business.profile"}},update:{value},create:{organizationId,branchId,key:"business.profile",value}});
+      await this.audit.record({userId:request.user.id,organizationId,branchId,action:"UPDATE",entity:"settings",entityId:setting.id,before,after:setting},tx);
+      return setting;
+    }, {maxWait:10000,timeout:20000});
   }
 }

@@ -1,9 +1,10 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService, type JwtSignOptions } from "@nestjs/jwt";
 import * as argon2 from "argon2";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../common/prisma.service";
 import { LoginDto } from "./dto";
+import { randomUUID } from "node:crypto";
 
 @Injectable()
 export class AuthService {
@@ -14,7 +15,7 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto, ip?: string) {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const user = await this.prisma.user.findUnique({ where: { email: dto.email.trim().toLowerCase() } });
     if (!user || user.status !== "ACTIVE") {
       throw new UnauthorizedException("Credenciais inválidas");
     }
@@ -63,7 +64,7 @@ export class AuthService {
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-    if (!user?.refreshTokenHash) {
+    if (!user?.refreshTokenHash || user.status !== "ACTIVE" || user.deletedAt) {
       throw new UnauthorizedException("Token de renovação inválido");
     }
 
@@ -72,7 +73,14 @@ export class AuthService {
       throw new UnauthorizedException("Token de renovação inválido");
     }
 
-    return this.issueTokens(user.id, user.email);
+    const tokens = await this.issueTokens(user.id, user.email);
+    const refreshHash = await argon2.hash(tokens.refreshToken);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshTokenHash: refreshHash }
+    });
+
+    return tokens;
   }
 
   async logout(userId: string) {
@@ -89,10 +97,19 @@ export class AuthService {
     return { ok: true };
   }
 
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    if (typeof newPassword !== "string" || newPassword.length < 12 || newPassword.length > 128 || newPassword === currentPassword) throw new BadRequestException("Use uma nova palavra-passe entre 12 e 128 caracteres.");
+    const user = await this.prisma.user.findUnique({where: {id:userId}});
+    if (!user || typeof currentPassword !== "string" || !await argon2.verify(user.passwordHash,currentPassword)) throw new UnauthorizedException("Palavra-passe atual incorreta.");
+    await this.prisma.user.update({where: {id:userId},data:{passwordHash:await argon2.hash(newPassword),refreshTokenHash:null}});
+    await this.audit.record({organizationId:user.organizationId,branchId:user.branchId,userId,entity:"users",entityId:userId,action:"CHANGE_PASSWORD"});
+    return {ok:true};
+  }
+
   private async issueTokens(userId: string, email: string) {
-    const payload = { sub: userId, email };
-    const accessTtl = (process.env.JWT_ACCESS_TTL ?? "15m") as JwtSignOptions["expiresIn"];
-    const refreshTtl = (process.env.JWT_REFRESH_TTL ?? "7d") as JwtSignOptions["expiresIn"];
+    const payload = { sub: userId, email, jti: randomUUID() };
+    const accessTtl = (process.env.JWT_ACCESS_TTL ?? "24h") as JwtSignOptions["expiresIn"];
+    const refreshTtl = (process.env.JWT_REFRESH_TTL ?? "30d") as JwtSignOptions["expiresIn"];
     const [accessToken, refreshToken] = await Promise.all([
       this.jwt.signAsync(payload, {
         secret: process.env.JWT_ACCESS_SECRET ?? "dev-access-secret",

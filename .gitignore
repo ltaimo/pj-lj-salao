@@ -20,3 +20,8 @@ apps/api/prisma/dev.db
 apps/api/prisma/dev.db-journal
 
 .vercel
+
+.audit/
+
+.vercel
+.env*

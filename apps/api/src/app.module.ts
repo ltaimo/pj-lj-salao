@@ -5,6 +5,7 @@ import { AuthModule } from "./auth/auth.module";
 import { AuditModule } from "./audit/audit.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { HealthModule } from "./health/health.module";
+import { LoyaltyModule } from "./loyalty/loyalty.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { OperationsModule } from "./operations/operations.module";
 import { PrismaService } from "./common/prisma.service";
@@ -16,6 +17,14 @@ import { UsersModule } from "./users/users.module";
     ConfigModule.forRoot({
       envFilePath: [resolve(process.cwd(), ".env"), resolve(process.cwd(), "../../.env")],
       isGlobal: true
+      ,validate: (config: Record<string, string>) => {
+        if (config.NODE_ENV === "production") {
+          for (const key of ["JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"]) {
+            if (!config[key] || config[key].length < 32 || config[key].startsWith("dev-")) throw new Error(`${key} deve ter pelo menos 32 caracteres em produção.`);
+          }
+        }
+        return config;
+      }
     }),
     HealthModule,
     DashboardModule,
@@ -23,6 +32,7 @@ import { UsersModule } from "./users/users.module";
     UsersModule,
     OrganizationsModule,
     OperationsModule,
+    LoyaltyModule,
     SettingsModule,
     AuditModule
   ],

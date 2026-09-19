@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from "@nestjs/common";
+import { BadRequestException, Controller, Get, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
 import { PermissionsGuard } from "../common/permissions.guard";
@@ -14,8 +14,10 @@ export class OrganizationsController {
 
   @Get()
   @RequirePermissions("settings.manage")
-  list() {
+  list(@Req() request: {user: {organizationId?: string}}) {
+    if (!request.user.organizationId) throw new BadRequestException("Utilizador sem organização.");
     return this.prisma.organization.findMany({
+      where: {id: request.user.organizationId},
       include: { branches: true }
     });
   }
