@@ -95,22 +95,26 @@ export class OperationsService {
     const scope = this.scope(user);
     const payload = body as Record<string, unknown>;
     const firstName = this.requiredString(payload.firstName ?? payload.name, "Nome do cliente");
-    const code = await this.nextCode("CLI", this.prisma.client.count({ where: { organizationId: scope.organizationId } }));
-    const client = await this.prisma.client.create({
-      data: {
-        ...scope,
-        code,
-        firstName,
-        lastName: this.optionalString(payload.lastName),
-        phone: this.optionalString(payload.phone),
-        whatsapp: this.optionalString(payload.whatsapp ?? payload.phone),
-        email: this.optionalString(payload.email),
-        source: this.optionalString(payload.source),
-        notes: this.optionalString(payload.notes)
-      }
-    });
-    await this.audit.record({ ...scope, userId: user.id, action: "CREATE", entity: "clients", entityId: client.id, after: client });
-    return client;
+    return this.prisma.$transaction(async tx => {
+      await lockOperations(tx, scope.organizationId);
+      const existingCodes = await tx.client.findMany({where: {organizationId: scope.organizationId}, select: {code: true}});
+      const code = this.nextAvailableCode("CLI", existingCodes.map(client => client.code));
+      const client = await tx.client.create({
+        data: {
+          ...scope,
+          code,
+          firstName,
+          lastName: this.optionalString(payload.lastName),
+          phone: this.optionalString(payload.phone),
+          whatsapp: this.optionalString(payload.whatsapp ?? payload.phone),
+          email: this.optionalString(payload.email),
+          source: this.optionalString(payload.source),
+          notes: this.optionalString(payload.notes)
+        }
+      });
+      await this.audit.record({ ...scope, userId: user.id, action: "CREATE", entity: "clients", entityId: client.id, after: client }, tx);
+      return client;
+    }, {maxWait: 10000, timeout: 20000});
   }
 
   async services(user: UserContext) {
@@ -168,9 +172,11 @@ export class OperationsService {
       update: { active: true },
       create: { organizationId: scope.organizationId, branchId: scope.branchId, name: categoryName }
     });
-    const sku = this.optionalString(payload.sku) ?? (await this.nextCode("PRD", this.prisma.product.count({ where: { organizationId: scope.organizationId } })));
     const stock = this.quantity(payload.stock ?? 0, "Stock");
     const product = await this.prisma.$transaction(async (tx) => {
+      await lockOperations(tx, scope.organizationId);
+      const existingProducts = await tx.product.findMany({where: {organizationId: scope.organizationId}, select: {sku: true}});
+      const sku = this.optionalString(payload.sku) ?? this.nextAvailableCode("PRD", existingProducts.map(product => product.sku));
       const created = await tx.product.create({
         data: {
           ...scope,
@@ -285,13 +291,17 @@ export class OperationsService {
     return entry;
   }
 
-  async appointments(user: UserContext) {
+  async appointments(user: UserContext, date?: string) {
     const scope = this.scope(user);
+    const day = date ?? new Date(Date.now() + 2 * 3600000).toISOString().slice(0, 10);
+    const start = new Date(`${day}T00:00:00+02:00`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(start.getTime()) || new Date(start.getTime() + 2 * 3600000).toISOString().slice(0, 10) !== day) {
+      throw new BadRequestException("Data de agenda inválida.");
+    }
     return this.prisma.appointment.findMany({
-      where: { organizationId: scope.organizationId, branchId: scope.branchId },
+      where: { ...scope, startsAt: {gte: start, lt: new Date(start.getTime() + 86400000)} },
       include: { client: true, service: true, employee: true },
-      orderBy: { startsAt: "asc" },
-      take: 80
+      orderBy: [{ startsAt: "asc" }, {id: "asc"}]
     });
   }
 
@@ -323,6 +333,7 @@ export class OperationsService {
 
   async currentCash(user: UserContext) {
     const scope = this.scope(user);
+    if (!user.permissions?.some(permission => ["cash.open", "cash.close", "reports.financial"].includes(permission))) return null;
     return this.prisma.cashSession.findFirst({
       where: { organizationId: scope.organizationId, branchId: scope.branchId, status: "OPEN" },
       orderBy: { openedAt: "desc" }
@@ -535,9 +546,13 @@ export class OperationsService {
     return `REC-${year}-${randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`;
   }
 
-  private async nextCode(prefix: string, countPromise: Promise<number>) {
-    const count = await countPromise;
-    return `${prefix}-${String(count + 1).padStart(5, "0")}`;
+  private nextAvailableCode(prefix: string, codes: string[]) {
+    const pattern = new RegExp(`^${prefix}-(\\d+)$`);
+    const maximum = codes.reduce((max, code) => {
+      const match = pattern.exec(code);
+      return match ? Math.max(max, Number(match[1])) : max;
+    }, 0);
+    return `${prefix}-${String(maximum + 1).padStart(5, "0")}`;
   }
 
   private requiredString(value: unknown, field: string) {

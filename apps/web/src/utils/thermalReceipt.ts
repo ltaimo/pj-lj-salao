@@ -289,9 +289,7 @@ export function buildThermalReceiptHtml(sale: Sale, profile: BusinessProfile = s
   </div>
 
   <div class="footer">
-    <div class="qr-stub">PJ&LJ<br/>VALID</div>
     <p>${escapeHtml(p.footerText ?? "Obrigado pela preferência!")}</p>
-    <p style="font-size:8px; color:#555;">Processado por PJ&LJ Salon Manager System</p>
   </div>
 </body>
 </html>`;
@@ -419,7 +417,6 @@ export function buildA4InvoiceHtml(sale: Sale, profile: BusinessProfile = sale.b
 
     <div class="footer">
       <p>${escapeHtml(p.footerText || "")}</p>
-      <p>Processado por computador - PJ&LJ Salon Manager System</p>
     </div>
   </div>
 </body>
@@ -520,7 +517,9 @@ function translatePaymentMethod(method: string): string {
     MPESA: "M-Pesa",
     EMOLA: "e-Mola",
     CARD: "Cartão / POS",
-    BANK_TRANSFER: "Transferência"
+    BANK_TRANSFER: "Transferência",
+    LOYALTY_POINTS: "Pontos de fidelidade",
+    OTHER: "Outro"
   };
   return dict[method] || method;
 }

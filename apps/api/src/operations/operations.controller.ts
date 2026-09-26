@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
 import { RequirePermissions } from "../common/permissions.decorator";
@@ -100,8 +100,8 @@ export class OperationsController {
 
   @Get("appointments")
   @RequirePermissions("dashboard.view")
-  appointments(@Req() request: AuthenticatedRequest) {
-    return this.operations.appointments(request.user);
+  appointments(@Req() request: AuthenticatedRequest, @Query("date") date?: string) {
+    return this.operations.appointments(request.user, date);
   }
 
   @Post("cash/open")

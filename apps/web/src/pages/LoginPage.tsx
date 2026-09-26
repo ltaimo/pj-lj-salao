@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -35,7 +35,6 @@ export function LoginPage() {
       const result = await login(values.email, values.password);
       queryClient.clear();
       setSession(result, values.remember);
-      setMessage(`Sessão iniciada como ${result.user.name}`);
       navigate("/");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Erro ao iniciar sessão");
@@ -43,29 +42,18 @@ export function LoginPage() {
   }
 
   return (
-    <section className="login-page pro-login">
-      <div className="login-brand-panel">
-        <img src="/pjlj-logo.jpg" alt="PJ&LJ Salão Unissex" />
-        <div>
-          <p>Sistema integrado</p>
-          <h1>PJ&LJ Salon Manager</h1>
-          <span>Barbearia · Cabeleireiro · POS · Stock · Fidelização</span>
-        </div>
-        <div className="login-health ok">
-          <ShieldCheck size={18} />
-          Acesso reservado à equipa
-        </div>
-      </div>
-      <form onSubmit={handleSubmit(onSubmit)} className="login-panel">
-        <div>
-          <p>Acesso seguro</p>
-          <h2>Entrar</h2>
-        </div>
+    <main className="login-page centered-login">
+      <form onSubmit={handleSubmit(onSubmit)} className="login-panel" aria-labelledby="login-title">
+        <header className="login-heading">
+          <img src="/pjlj-logo.jpg" alt="PJ&LJ Salão Unissex" width="88" height="88" />
+          <h1 id="login-title">Bem-vindo</h1>
+          <p>Entre na sua conta.</p>
+        </header>
         <label>
           <span>Email</span>
           <div className="input-row">
             <Mail size={18} />
-            <input type="email" autoComplete="email" placeholder="utilizador@empresa.com" {...register("email")} />
+            <input type="email" autoComplete="username" placeholder="O seu email" aria-invalid={Boolean(formState.errors.email)} {...register("email")} />
           </div>
           {formState.errors.email && <small>Email inválido.</small>}
         </label>
@@ -73,7 +61,7 @@ export function LoginPage() {
           <span>Palavra-passe</span>
           <div className="input-row">
             <LockKeyhole size={18} />
-            <input type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="Introduza a palavra-passe" {...register("password")} />
+            <input type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="A sua palavra-passe" aria-invalid={Boolean(formState.errors.password)} {...register("password")} />
             <button className="icon-button" type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Ocultar palavra-passe" : "Mostrar palavra-passe"}>
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -83,15 +71,15 @@ export function LoginPage() {
         <div className="login-options">
           <label className="check-row">
             <input type="checkbox" {...register("remember")} />
-            <span>Manter sessão neste dispositivo</span>
+            <span>Manter sessão</span>
           </label>
           <button className="link-button" type="button" onClick={() => setMessage("Contacte a administração para recuperar o acesso.")}>Recuperar acesso</button>
         </div>
         <button className="primary-action" type="submit" disabled={formState.isSubmitting}>
           {formState.isSubmitting ? "A entrar..." : "Entrar no sistema"}
         </button>
-        {message && <p className="form-message">{message}</p>}
+        {message && <p className="form-message" role="status">{message}</p>}
       </form>
-    </section>
+    </main>
   );
 }

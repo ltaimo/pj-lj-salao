@@ -57,6 +57,7 @@ import {
   createUser,
   deactivateUser,
   getLoyaltyHistory,
+  getAppointments,
   getLoyaltySettings,
   getLoyaltySummaryReport,
   issueLoyaltyCard,
@@ -153,10 +154,9 @@ export function OperationsPage({ mode }: OperationsPageProps) {
       <div className="module-hero">
         <div className="module-icon"><Icon size={24} /></div>
         <div>
-          <p>{copy.eyebrow}</p>
           <h1>{copy.title}</h1>
         </div>
-        <div className="status ok">{dataQuery.isFetching ? "A atualizar" : "Atualizado"}</div>
+        {dataQuery.isFetching && <div className="status" role="status">A atualizar…</div>}
       </div>
       {!data && <div className="notice" role="status">A carregar os dados da filial…</div>}
       {data && (
@@ -429,19 +429,22 @@ function PosPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () =>
 
 function ClientsPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () => void }) {
   const mutation = useMutation({ mutationFn: createClient, onSuccess: refresh });
+  const [search, setSearch] = useState("");
+  const clients = data.clients.filter(client => `${client.firstName} ${client.lastName ?? ""} ${client.phone ?? ""} ${client.code}`.toLocaleLowerCase().includes(search.toLocaleLowerCase().trim()));
   const [selectedClient, setSelectedClient] = useState<OperationsBootstrap["clients"][0] | undefined>();
 
   return (
     <div className="split-grid">
-      <FormPanel title="Novo cliente" icon={<UserPlus size={18} />} onSubmit={(values) => mutation.mutateAsync({ firstName: values.firstName, phone: values.phone, whatsapp: values.phone, notes: values.notes })}>
+      {data.permissions.includes("clients.create") && <FormPanel title="Novo cliente" icon={<UserPlus size={18} />} onSubmit={(values) => mutation.mutateAsync({ firstName: values.firstName, phone: values.phone, whatsapp: values.phone, notes: values.notes })}>
         <input name="firstName" placeholder="Nome do cliente" required />
         <input name="phone" placeholder="Telefone / WhatsApp" />
         <textarea name="notes" placeholder="Preferências, alergias, observações" />
-      </FormPanel>
+      </FormPanel>}
       <section className="tool-panel">
         <SectionTitle icon={Users} title="Clientes registados" />
+        <input type="search" aria-label="Pesquisar clientes" placeholder="Pesquisar nome ou telefone…" value={search} onChange={event => setSearch(event.target.value)} />
         <div className="data-list">
-          {data.clients.map((client) => (
+          {clients.map((client) => (
             <article
               key={client.id}
               className="action-line clickable-card"
@@ -449,7 +452,7 @@ function ClientsPanel({ data, refresh }: { data: OperationsBootstrap; refresh: (
             >
               <div>
                 <strong>{client.firstName} {client.lastName ?? ""}</strong>
-                <span>{client.phone ?? "Sem telefone"} · {client.loyaltyPoints} pts · {money(client.totalSpent)} gasto</span>
+                <span>{client.phone ?? "Sem telefone"} · {client.loyaltyPoints} pts</span>
               </div>
               <button type="button">
                 <CreditCard size={16} /> Ver Cartão
@@ -471,37 +474,50 @@ function ClientsPanel({ data, refresh }: { data: OperationsBootstrap; refresh: (
 }
 
 function AttendancePanel({ data, refresh }: { data: OperationsBootstrap; refresh: () => void }) {
+  const queryClient = useQueryClient();
+  const [date, setDate] = useState(new Date(Date.now() + 2 * 3600000).toISOString().slice(0, 10));
+  const appointments = useQuery({queryKey: ["appointments", date], queryFn: () => getAppointments(date), enabled: Boolean(date)});
   const queueMutation = useMutation({ mutationFn: createQueueEntry, onSuccess: refresh });
   const statusMutation = useMutation({ mutationFn: ({ id, status }: { id: string; status: string }) => updateQueueStatus(id, status), onSuccess: refresh });
-  const appointmentMutation = useMutation({ mutationFn: createAppointment, onSuccess: refresh });
+  const appointmentMutation = useMutation({ mutationFn: createAppointment, onSuccess: () => {refresh(); void queryClient.invalidateQueries({queryKey: ["appointments"]});} });
   return (
     <div className="split-grid">
-      <FormPanel title="Walk-in / fila" icon={<Clock size={18} />} onSubmit={(values) => queueMutation.mutateAsync({ customerName: values.customerName, serviceId: values.serviceId, employeeId: values.employeeId || undefined })}>
+      <section className="tool-panel wide">
+        <div className="panel-heading"><h2>Marcações</h2><label className="agenda-date">Data<input aria-label="Data da agenda" type="date" value={date} onChange={event => setDate(event.target.value)} required /></label></div>
+        {appointments.isLoading && <p role="status">A carregar marcações…</p>}
+        {appointments.isError && <p role="alert">Não foi possível carregar a agenda. <button type="button" onClick={() => appointments.refetch()}>Tentar novamente</button></p>}
+        {appointments.data?.length === 0 && <p className="empty-state small">Sem marcações nesta data.</p>}
+        <div className="data-list two-col">{appointments.data?.map(item => <article key={item.id}><strong>{new Date(item.startsAt).toLocaleTimeString("pt-MZ", {hour: "2-digit", minute: "2-digit", timeZone: "Africa/Maputo"})} · {item.customerName}</strong><span>{item.service.name} · {item.employee?.name ?? "Sem atribuição"}</span><span>{({SCHEDULED: "Agendado", CONFIRMED: "Confirmado", ARRIVED: "Chegou", WAITING: "Em espera", IN_SERVICE: "Em atendimento", COMPLETED: "Concluído", CANCELLED: "Cancelado", NO_SHOW: "Não compareceu"} as Record<string, string>)[item.status] ?? item.status}</span></article>)}</div>
+      </section>
+      {data.permissions.includes("queue.manage") && <FormPanel title="Adicionar à fila" icon={<Clock size={18} />} onSubmit={(values) => queueMutation.mutateAsync({ customerName: values.customerName, serviceId: values.serviceId, employeeId: values.employeeId || undefined })}>
         <input name="customerName" placeholder="Cliente" required />
         <Select name="serviceId" options={data.services.map((service) => [service.id, service.name])} />
         <Select name="employeeId" empty="Próximo disponível" options={data.staff.map((employee) => [employee.id, employee.name])} />
-      </FormPanel>
-      <FormPanel title="Nova marcação" icon={<CalendarPlus size={18} />} onSubmit={(values) => appointmentMutation.mutateAsync({ customerName: values.customerName, serviceId: values.serviceId, employeeId: values.employeeId || undefined, startsAt: new Date(values.startsAt).toISOString(), durationMinutes: Number(values.durationMinutes || 30) })}>
+      </FormPanel>}
+      {data.permissions.includes("appointments.create") && <FormPanel title="Nova marcação" icon={<CalendarPlus size={18} />} onSubmit={(values) => appointmentMutation.mutateAsync({ customerName: values.customerName, serviceId: values.serviceId, employeeId: values.employeeId || undefined, startsAt: new Date(`${values.startsAt}+02:00`).toISOString(), durationMinutes: Number(values.durationMinutes || 30) })}>
         <input name="customerName" placeholder="Cliente" required />
         <input name="startsAt" type="datetime-local" required />
         <input name="durationMinutes" type="number" min="10" defaultValue="30" />
         <Select name="serviceId" options={data.services.map((service) => [service.id, service.name])} />
         <Select name="employeeId" empty="Sem atribuição" options={data.staff.map((employee) => [employee.id, employee.name])} />
-      </FormPanel>
+      </FormPanel>}
       <section className="tool-panel wide">
         <SectionTitle icon={Clock} title="Fila ativa" />
         <div className="queue-board">
           {data.queue.map((entry) => (
             <article key={entry.id}>
               <strong>{entry.customerName}</strong>
-              <span>{entry.service.name} · {entry.employee?.name ?? "Próximo disponível"} · {entry.status}</span>
-              <div className="button-row">
-                <button onClick={() => statusMutation.mutate({ id: entry.id, status: "IN_SERVICE" })}>Iniciar</button>
-                <button onClick={() => statusMutation.mutate({ id: entry.id, status: "COMPLETED" })}>Concluir</button>
-              </div>
+              <span>{entry.service.name} · {entry.employee?.name ?? "Próximo disponível"} · {entry.status === "IN_SERVICE" ? "Em atendimento" : entry.status === "CALLED" ? "Chamado" : "Em espera"}</span>
+              <span>Entrada: {new Date(entry.arrivedAt).toLocaleString("pt-MZ", {timeZone: "Africa/Maputo"})}</span>
+              {data.permissions.includes("queue.manage") && <div className="button-row">
+                {entry.status !== "IN_SERVICE" && <button disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ id: entry.id, status: "IN_SERVICE" })}>Iniciar</button>}
+                <button disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ id: entry.id, status: "COMPLETED" })}>Concluir</button>
+              </div>}
             </article>
           ))}
         </div>
+        {!data.queue.length && <p className="empty-state small">Sem clientes na fila.</p>}
+        {statusMutation.isError && <p role="alert">Não foi possível atualizar o atendimento.</p>}
       </section>
     </div>
   );
@@ -511,13 +527,13 @@ function ServicesPanel({ data, refresh }: { data: OperationsBootstrap; refresh: 
   const mutation = useMutation({ mutationFn: createService, onSuccess: refresh });
   return (
     <div className="split-grid">
-      <FormPanel title="Novo serviço" icon={<Scissors size={18} />} onSubmit={(values) => mutation.mutateAsync({ name: values.name, categoryName: values.categoryName, durationMinutes: Number(values.durationMinutes), price: Number(values.price), cost: Number(values.cost || 0) })}>
+      {data.permissions.includes("services.manage") && <FormPanel title="Novo serviço" icon={<Scissors size={18} />} onSubmit={(values) => mutation.mutateAsync({ name: values.name, categoryName: values.categoryName, durationMinutes: Number(values.durationMinutes), price: Number(values.price), cost: Number(values.cost || 0) })}>
         <input name="name" placeholder="Serviço" required />
         <input name="categoryName" placeholder="Categoria" defaultValue="Barbearia" required />
         <input name="durationMinutes" type="number" min="5" defaultValue="30" />
         <input name="price" type="number" min="0" placeholder="Preço" required />
         <input name="cost" type="number" min="0" placeholder="Custo estimado" />
-      </FormPanel>
+      </FormPanel>}
       <section className="tool-panel">
         <SectionTitle icon={Scissors} title="Catálogo de serviços" />
         <div className="data-list two-col">
@@ -552,7 +568,7 @@ function StockPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
 
   return (
     <div className="split-grid">
-      <div className="stacked-panels">
+      {data.permissions.includes("products.manage") && <div className="stacked-panels">
         <FormPanel title="Novo produto" icon={<PackagePlus size={18} />} onSubmit={(values) => mutation.mutateAsync({ name: values.name, sku: values.sku, categoryName: values.categoryName, salePrice: Number(values.salePrice), purchasePrice: Number(values.purchasePrice || 0), stock: Number(values.stock || 0), minimumStock: Number(values.minimumStock || 0), unit: values.unit })}>
           <input name="name" placeholder="Produto" required />
           <input name="sku" placeholder="SKU opcional" />
@@ -564,7 +580,7 @@ function StockPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
           <input name="unit" placeholder="Unidade" defaultValue="unidade" />
         </FormPanel>
         {message && <div className="notice strong">{message}</div>}
-      </div>
+      </div>}
       <section className="tool-panel">
         <SectionTitle icon={PackagePlus} title="Inventário" />
         <div className="data-list">
@@ -574,9 +590,9 @@ function StockPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
                 <strong>{product.name}</strong>
                 <span>{product.sku} · stock {Number(product.stock)} {product.unit} · mínimo {Number(product.minimumStock)} · {money(product.salePrice)}</span>
               </div>
-              <button className="danger-button" type="button" onClick={() => confirmRemove(product)} disabled={removeMutation.isPending}>
+              {data.permissions.includes("products.manage") && <button className="danger-button" type="button" onClick={() => confirmRemove(product)} disabled={removeMutation.isPending}>
                 <Trash2 size={16} /> Remover
-              </button>
+              </button>}
             </article>
           ))}
         </div>
@@ -589,7 +605,7 @@ function SalesPanel({ data }: { data: OperationsBootstrap }) {
   const [receiptSale, setReceiptSale] = useState<Sale>();
   return (
     <div className="panel-grid">
-      <MetricCard label="Recibos emitidos" value={String(data.sales.length)} icon={ReceiptText} />
+      <MetricCard label="Recibos recentes (até 50)" value={String(data.sales.length)} icon={ReceiptText} />
       <MetricCard label="Valor recente" value={money(data.sales.reduce((sum, sale) => sum + Number(sale.total), 0))} icon={Wallet} />
       <section className="tool-panel wide">
         <SectionTitle icon={ReceiptText} title="Últimas vendas" />
@@ -598,7 +614,7 @@ function SalesPanel({ data }: { data: OperationsBootstrap }) {
             <article className="action-line" key={sale.id}>
               <div>
                 <strong>{sale.receiptNumber}</strong>
-                <span>{money(sale.total)} · {sale.payments.map((payment) => payment.method).join(", ")} · {new Date(sale.createdAt).toLocaleString("pt-MZ")}</span>
+                <span>{money(sale.total)} · {sale.payments.map((payment) => paymentMethods.find(method => method.value === payment.method)?.label ?? "Outro").join(", ")} · {new Date(sale.createdAt).toLocaleString("pt-MZ", {timeZone:"Africa/Maputo"})}</span>
               </div>
               <button type="button" onClick={() => setReceiptSale(sale)}><ReceiptText size={16} /> Ver recibo</button>
             </article>
@@ -705,7 +721,6 @@ function ClientLoyaltyModal({
               {card && (
                 <div className="qr-badge">
                   <QRCodeSVG value={card.qrCode} size={100} level="M" marginSize={3} title="Código QR do cartão"/>
-                  <span>{card.qrCode}</span>
                 </div>
               )}
             </div>
@@ -730,7 +745,7 @@ function ClientLoyaltyModal({
           </div>
         </div>
 
-        <div className="button-row loyalty-actions">
+        {canManageCard && <div className="button-row loyalty-actions">
           {!card ? (
             <button type="button" className="action-btn primary" onClick={() => issueMutation.mutate()} disabled={issueMutation.isPending || !canManageCard}>
               <Award size={18} /> Emitir Cartão de Fidelidade
@@ -749,12 +764,12 @@ function ClientLoyaltyModal({
                   <Unlock size={18} /> Desbloquear Cartão
                 </button>
               )}
-              <button type="button" className="action-btn primary" disabled={!permissions.includes("settings.manage")} onClick={() => setShowAdjustModal(true)}>
+              {permissions.includes("settings.manage") && <button type="button" className="action-btn primary" onClick={() => setShowAdjustModal(true)}>
                 <Sliders size={18} /> Ajuste Manual de Pontos
-              </button>
+              </button>}
             </>
           )}
-        </div>
+        </div>}
 
         {showAdjustModal && (
           <div className="adjust-form-box">
@@ -779,9 +794,9 @@ function ClientLoyaltyModal({
         )}
 
         <section className="ledger-section">
-          <h3><History size={18} /> Extrato de Movimentações (Ledger)</h3>
+          <h3><History size={18} /> Histórico de pontos</h3>
           {historyQuery.isLoading ? (
-            <div>Carregando histórico...</div>
+            <div>A carregar histórico…</div>
           ) : !historyQuery.data?.length ? (
             <div className="empty-state small">Nenhuma movimentação de fidelidade registada.</div>
           ) : (
@@ -791,7 +806,7 @@ function ClientLoyaltyModal({
                   <th>Data</th>
                   <th>Tipo</th>
                   <th className="num">Pontos</th>
-                  <th className="num">Saldo Pós</th>
+                  <th className="num">Saldo</th>
                   <th className="num">Valor MT</th>
                   <th>Referência / Motivo</th>
                 </tr>
@@ -800,7 +815,7 @@ function ClientLoyaltyModal({
                 {historyQuery.data.map((movement) => (
                   <tr key={movement.id}>
                     <td>{new Date(movement.createdAt).toLocaleString("pt-MZ")}</td>
-                    <td><span className={`movement-badge ${movement.type}`}>{movement.type}</span></td>
+                    <td><span className={`movement-badge ${movement.type}`}>{({EARNED:"Acumulado",REDEEMED:"Resgatado",MANUAL_ADJUSTMENT:"Ajuste manual",REVERSED:"Revertido",EXPIRED:"Expirado",PROMOTIONAL:"Oferta"} as Record<string,string>)[movement.type] ?? movement.type}</span></td>
                     <td className={`num bold ${movement.points > 0 ? "pos" : "neg"}`}>{movement.points > 0 ? `+${movement.points}` : movement.points}</td>
                     <td className="num">{movement.afterBalance} pts</td>
                     <td className="num">{money(movement.monetaryValue)}</td>
@@ -849,19 +864,21 @@ function LoyaltyPanel({ data, refresh }: { data: OperationsBootstrap; refresh: (
 
   return (
     <div className="panel-grid">
-      <MetricCard label="Cartões ativos" value={String(summary?.activeCardsCount ?? data.clients.filter((c) => c.loyaltyPoints > 0).length)} icon={CreditCard} />
+      {summary && <>
+      <MetricCard label="Cartões ativos" value={String(summary.activeCardsCount)} icon={CreditCard} />
       <MetricCard label="Pontos em circulação" value={`${summary?.totalPointsInCirculation ?? data.clients.reduce((s, c) => s + c.loyaltyPoints, 0)} pts`} icon={Award} />
       <MetricCard label="Valor equivalente" value={money(summary?.totalMonetaryEquivalent ?? 0)} icon={Wallet} />
       <MetricCard label="Taxa de resgate" value={`${summary?.redemptionRatePercent ?? 0}%`} icon={BadgePercent} />
+      </>}
 
       <section className="tool-panel wide">
         <div className="receipt-format-tabs" style={{ marginBottom: "16px" }}>
           <button type="button" className={activeTab === "ranking" ? "active" : ""} onClick={() => setActiveTab("ranking")}>
             Cartões e clientes ({data.clients.length})
           </button>
-          <button type="button" disabled={!data.permissions.includes("settings.manage")} className={activeTab === "settings" ? "active" : ""} onClick={() => setActiveTab("settings")}>
+          {data.permissions.includes("settings.manage") && <button type="button" className={activeTab === "settings" ? "active" : ""} onClick={() => setActiveTab("settings")}>
             Configurações do programa
-          </button>
+          </button>}
         </div>
 
         {activeTab === "ranking" && (
@@ -883,7 +900,7 @@ function LoyaltyPanel({ data, refresh }: { data: OperationsBootstrap; refresh: (
                 >
                   <div>
                     <strong>{client.firstName} {client.lastName ?? ""}</strong>
-                    <span>{client.phone ?? "Sem telefone"} · {client.loyaltyPoints} pts · {money(client.totalSpent)} gasto</span>
+                    <span>{client.phone ?? "Sem telefone"} · {client.loyaltyPoints} pts</span>
                   </div>
                   <button type="button">
                     <CreditCard size={16} /> Fidelidade
@@ -991,7 +1008,7 @@ function ReportsPanel({ data }: { data: OperationsBootstrap }) {
           <span>Serviços: <strong>{data.services.length}</strong></span>
           <span>Produtos: <strong>{data.products.length}</strong></span>
           <span>Fila ativa: <strong>{data.queue.length}</strong></span>
-          <span>Marcações: <strong>{data.appointments.length}</strong></span>
+          <span>Marcações de hoje: <strong>{data.appointments.length}</strong></span>
         </div>
       </section>
     </div>
@@ -999,9 +1016,9 @@ function ReportsPanel({ data }: { data: OperationsBootstrap }) {
 }
 
 function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () => void }) {
-  const users = useQuery({ queryKey: ["users"], queryFn: listUsers });
-  const roles = useQuery({ queryKey: ["roles"], queryFn: listRoles });
-  const audit = useQuery({ queryKey: ["audit"], queryFn: listAudit });
+  const users = useQuery({ queryKey: ["users"], queryFn: listUsers, enabled: data.permissions.includes("staff.manage") });
+  const roles = useQuery({ queryKey: ["roles"], queryFn: listRoles, enabled: data.permissions.includes("staff.manage") });
+  const audit = useQuery({ queryKey: ["audit"], queryFn: listAudit, enabled: data.permissions.includes("audit.view") });
   const queryClient = useQueryClient();
   const [adminTab, setAdminTab] = useState<"business" | "users" | "audit" | "reset">("business");
   const [resetOpen, setResetOpen] = useState(false);
@@ -1043,8 +1060,8 @@ function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
       {adminMessage && <div className="notice strong wide">{adminMessage}</div>}
       <nav className="section-tabs wide" aria-label="Áreas de administração">
         <button type="button" className={adminTab === "business" ? "active" : ""} onClick={()=>setAdminTab("business")}>Negócio e caixa</button>
-        <button type="button" className={adminTab === "users" ? "active" : ""} onClick={()=>setAdminTab("users")}>Utilizadores</button>
-        <button type="button" className={adminTab === "audit" ? "active" : ""} onClick={()=>setAdminTab("audit")}>Auditoria</button>
+        {data.permissions.includes("staff.manage") && <button type="button" className={adminTab === "users" ? "active" : ""} onClick={()=>setAdminTab("users")}>Utilizadores</button>}
+        {data.permissions.includes("audit.view") && <button type="button" className={adminTab === "audit" ? "active" : ""} onClick={()=>setAdminTab("audit")}>Auditoria</button>}
         <button type="button" className={adminTab === "reset" ? "active danger-tab" : "danger-tab"} onClick={()=>setAdminTab("reset")}>Reposição</button>
       </nav>
 
@@ -1083,7 +1100,7 @@ function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
           <SectionTitle icon={ShieldCheck} title="Auditoria recente" />
           <div className="data-list two-col audit-list">
             {(audit.data ?? []).slice(0, 20).map((event) => (
-              <article key={event.id}><strong>{event.action.replace(/_/g, " ")} · {event.entity}</strong><span>{new Date(event.createdAt).toLocaleString("pt-MZ")}</span></article>
+              <article key={event.id}><strong>{({LOGIN:"Início de sessão",LOGOUT:"Fim de sessão",CREATE:"Criação",UPDATE:"Alteração",REMOVE:"Remoção",DEACTIVATE:"Desativação",CASH_OPEN:"Abertura de caixa",CASH_CLOSE:"Fecho de caixa",PRODUCTION_RESET:"Reposição de dados",UPDATE_SETTINGS:"Alteração de regras",ISSUE_LOYALTY_CARD:"Emissão de cartão",REPLACE_LOYALTY_CARD:"Substituição de cartão",UPDATE_LOYALTY_CARD_STATUS:"Estado do cartão",LOYALTY_MANUAL_ADJUSTMENT:"Ajuste de pontos",CHANGE_PASSWORD:"Alteração de palavra-passe"} as Record<string,string>)[event.action] ?? "Atividade registada"}</strong><span>{event.user?.name ?? "Sistema"} · {new Date(event.createdAt).toLocaleString("pt-MZ", {timeZone:"Africa/Maputo"})}</span>{event.after?.reason && <span>{event.after.reason}</span>}</article>
             ))}
           </div>
         </section>}
@@ -1105,7 +1122,6 @@ function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
               <li>Caixas, marcações e fila de atendimento</li>
               <li>Clientes, cartões e movimentos de fidelidade</li>
               <li>Movimentos e quantidades atuais de stock</li>
-              <li>Histórico de auditoria anterior</li>
             </ul>
           </div>
           <div>
@@ -1115,7 +1131,7 @@ function AdminPanel({ data, refresh }: { data: OperationsBootstrap; refresh: () 
               <li>Serviços, produtos e categorias</li>
               <li>Profissionais</li>
               <li>Configurações do negócio e da fidelidade</li>
-              <li>Um novo registo com o motivo da reposição</li>
+              <li>Histórico de auditoria e motivo de cada reposição</li>
             </ul>
           </div>
         </div>
@@ -1231,7 +1247,7 @@ function ReceiptModal({ sale, onClose }: { sale: Sale; onClose: () => void }) {
       <section className="receipt-modal">
         <header className="receipt-modal-header">
           <div>
-            <p>Emissão & Impressão de Venda</p>
+            <p>Pré-visualização do recibo</p>
             <h2>{sale.receiptNumber}</h2>
           </div>
           <button className="icon-button dark" type="button" onClick={onClose} aria-label="Fechar recibo"><X size={18} /></button>
@@ -1258,7 +1274,7 @@ function ReceiptModal({ sale, onClose }: { sale: Sale; onClose: () => void }) {
         <div className="button-row receipt-actions">
           <button type="button" className="action-btn primary" onClick={() => printThermalReceipt(sale)}><Printer size={18} /> Imprimir Térmica (80mm)</button>
           <button type="button" className="action-btn" onClick={handleDownloadPdf}><FileText size={18} /> Descarregar PDF</button>
-          <button type="button" className="action-btn" onClick={handleDownloadHtml}><Download size={18} /> Guardar HTML</button>
+          <button type="button" className="action-btn" onClick={handleDownloadHtml}><Download size={18} /> Guardar cópia</button>
           <button type="button" className="action-btn whatsapp-btn" onClick={handleShareWhatsApp}><Share2 size={18} /> Partilhar WhatsApp</button>
         </div>
       </section>

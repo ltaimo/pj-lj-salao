@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from "@nestjs/common";
+import { BadRequestException, Controller, Get, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { PrismaService } from "../common/prisma.service";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
@@ -14,8 +14,12 @@ export class AuditController {
 
   @Get()
   @RequirePermissions("audit.view")
-  list() {
+  list(@Req() request: {user: {organizationId?: string | null; branchId?: string | null}}) {
+    const {organizationId, branchId} = request.user;
+    if (!organizationId || !branchId) throw new BadRequestException("Utilizador sem organização ou filial.");
     return this.prisma.auditLog.findMany({
+      where: {organizationId, branchId},
+      include: {user: {select: {name: true}}},
       orderBy: { createdAt: "desc" },
       take: 100
     });

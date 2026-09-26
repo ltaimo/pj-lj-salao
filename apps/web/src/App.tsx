@@ -25,7 +25,7 @@ const moduleGroups = [
   {
     title: "Operação",
     items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/", label: "Início", icon: LayoutDashboard },
       { to: "/pos", label: "POS", icon: ShoppingCart },
       { to: "/agenda", label: "Agenda e fila", icon: CalendarDays }
     ]
@@ -122,8 +122,8 @@ export function App() {
             <span>{me.data ? `${me.data.name} · ${me.data.branchName}` : "A carregar a sessão…"}</span>
           </div>
           <div className="topbar-actions">
-            <button className="topbar-action secondary" type="button" onClick={()=>setPasswordOpen(true)} title="Alterar palavra-passe"><LockKeyhole size={17} /> <span>Segurança</span></button>
-            <button className="topbar-action" type="button" onClick={logout}><LogOut size={17} /> <span>Sair</span></button>
+            <button className="topbar-action secondary" type="button" onClick={()=>setPasswordOpen(true)} aria-label="Alterar palavra-passe" title="Alterar palavra-passe"><LockKeyhole size={17} /> <span>Segurança</span></button>
+            <button className="topbar-action" type="button" onClick={logout} aria-label="Sair"><LogOut size={17} /> <span>Sair</span></button>
           </div>
         </header>
         <Routes>
@@ -145,7 +145,7 @@ export function App() {
         {mobileItems.filter(item=>visible(item.to)).map((item) => (
           <NavLink key={item.to} to={item.to}>
             <item.icon size={20} />
-            <span>{item.label === "Dashboard" ? "Home" : item.label.replace(" e fila", "")}</span>
+            <span>{item.label.replace(" e fila", "")}</span>
           </NavLink>
         ))}
         <button type="button" onClick={()=>setMenuOpen(!menuOpen)} aria-expanded={menuOpen}>

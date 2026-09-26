@@ -45,6 +45,8 @@ describe("Production reset", () => {
     const result = await controller.productionReset(request, {reason, confirmation: PRODUCTION_RESET_CONFIRMATION});
 
     expect(result.ok).toBe(true);
+    expect(tx.auditLog.deleteMany).not.toHaveBeenCalled();
+    expect(result.cleared.previousAuditEvents).toBe(0);
     expect(result.cleared).toEqual(expect.objectContaining({sales: 6, clients: 9, productsResetToZero: 10}));
     expect(tx.product.updateMany).toHaveBeenCalledWith({
       where: {organizationId: "org-1", branchId: "branch-1"},

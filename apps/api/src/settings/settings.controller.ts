@@ -103,7 +103,6 @@ export class SettingsController {
         });
       }
 
-      const previousAuditEvents = await tx.auditLog.deleteMany({where: scope});
       const resetAt = new Date().toISOString();
       const cleared = {
         sales: sales.count,
@@ -115,7 +114,7 @@ export class SettingsController {
         loyaltyMovements: loyaltyMovements.count,
         stockMovements: stockMovements.count,
         productsResetToZero: products.count,
-        previousAuditEvents: previousAuditEvents.count
+        previousAuditEvents: 0
       };
 
       await this.audit.record({
@@ -129,7 +128,7 @@ export class SettingsController {
           reason: parsed.data.reason,
           resetAt,
           cleared,
-          preserved: ["users", "roles", "employees", "services", "products", "settings"]
+          preserved: ["users", "roles", "employees", "services", "products", "settings", "auditLogs"]
         },
         ip: request.ip,
         device: typeof request.headers?.["user-agent"] === "string" ? request.headers["user-agent"] : undefined

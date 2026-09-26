@@ -9,6 +9,7 @@ type AuthenticatedRequest = {
   user: {
     organizationId?: string | null;
     branchId?: string | null;
+    permissions?: string[];
   };
 };
 
@@ -23,6 +24,9 @@ export class DashboardController {
   @RequirePermissions("dashboard.view")
   async summary(@Req() request: AuthenticatedRequest) {
     const { organizationId, branchId } = request.user;
+    const permissions = request.user.permissions ?? [];
+    const canSeeSales = permissions.includes("reports.sales");
+    const canSeeCash = permissions.some(permission => ["cash.open", "cash.close", "reports.financial"].includes(permission));
     if (!organizationId || !branchId) throw new BadRequestException("Utilizador sem organização ou filial.");
     const maputo = new Date(Date.now() + 2 * 3600000);
     const today = new Date(Date.UTC(maputo.getUTCFullYear(), maputo.getUTCMonth(), maputo.getUTCDate()) - 2 * 3600000);
@@ -121,21 +125,21 @@ export class DashboardController {
       currency: "MZN",
       timezone: "Africa/Maputo",
       metrics: {
-        dailySales: Number(sales._sum.total ?? 0),
+        dailySales: canSeeSales ? Number(sales._sum.total ?? 0) : undefined,
         servicesCompleted,
         clientsServed,
         waitingClients,
         availableProfessionals,
-        criticalStock,
-        activeUsers: users,
-        activeBranches: branches,
-        auditEvents: auditLogs,
-        cashExpected: Number(cash?.expectedBalance ?? 0)
+        criticalStock: permissions.includes("inventory.view") ? criticalStock : undefined,
+        activeUsers: permissions.includes("staff.manage") ? users : undefined,
+        activeBranches: permissions.includes("settings.manage") ? branches : undefined,
+        auditEvents: permissions.includes("audit.view") ? auditLogs : undefined,
+        cashExpected: canSeeCash ? Number(cash?.expectedBalance ?? 0) : undefined
       },
-      paymentsByMethod: payments.map((payment) => ({
+      paymentsByMethod: canSeeSales ? payments.map((payment) => ({
         method: payment.method,
         amount: Number(payment._sum.amount ?? 0)
-      }))
+      })) : []
     };
   }
 }

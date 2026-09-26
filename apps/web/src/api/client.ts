@@ -18,7 +18,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
   });
 
   if (!response.ok) {
-    throw new Error("Credenciais inválidas");
+    throw new Error(response.status === 401 ? "Email ou palavra-passe incorretos." : "Não foi possível entrar agora. Tente novamente dentro de instantes.");
   }
 
   return response.json();
@@ -37,16 +37,16 @@ export type DashboardSummary = {
   currency: string;
   timezone: string;
   metrics: {
-    dailySales: number;
+    dailySales?: number;
     servicesCompleted: number;
     clientsServed: number;
     waitingClients: number;
     availableProfessionals: number;
-    criticalStock: number;
-    activeUsers: number;
-    activeBranches: number;
-    auditEvents: number;
-    cashExpected: number;
+    criticalStock?: number;
+    activeUsers?: number;
+    activeBranches?: number;
+    auditEvents?: number;
+    cashExpected?: number;
   };
   paymentsByMethod: Array<{ method: string; amount: number }>;
 };
@@ -170,6 +170,8 @@ export type AuditEvent = {
   entity: string;
   entityId?: string;
   createdAt: string;
+  user?: {name: string} | null;
+  after?: {reason?: string} | null;
 };
 
 export type OperationsBootstrap = {
@@ -340,6 +342,10 @@ export function updateQueueStatus(id: string, status: string) {
   return api<QueueEntry>(`/queue/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
 }
 
+export function getAppointments(date: string): Promise<Appointment[]> {
+  return api<Appointment[]>(`/appointments?date=${encodeURIComponent(date)}`);
+}
+
 export function createAppointment(payload: {
   customerName: string;
   serviceId: string;
@@ -438,16 +444,7 @@ export function resetProductionData(payload: {reason: string; confirmation: stri
   return api<ProductionResetResult>("/settings/production-reset", {method: "POST", body: JSON.stringify(payload)});
 }
 
-export type AuditLog = {
-  id: string;
-  action: string;
-  entityType: string;
-  entityId: string;
-  entity?: string;
-  userId?: string;
-  createdAt: string;
-  details?: any;
-};
+export type AuditLog = AuditEvent;
 
 export function listAudit() {
   return api<AuditLog[]>("/audit");

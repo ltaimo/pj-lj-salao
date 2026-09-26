@@ -6,13 +6,14 @@ export function CashPanel({data,refresh}:{data:OperationsBootstrap;refresh:()=>v
   const qc=useQueryClient();
   const action=useMutation({mutationFn:()=>data.cash?closeCash(amount):openCash(amount),onSuccess:()=>{refresh();qc.invalidateQueries({queryKey:['dashboard-summary']});setAmount(0);}});
   const allowed=data.permissions.includes(data.cash?'cash.close':'cash.open');
-  return <section className="tool-panel cash-panel">
-    <header className="panel-heading compact"><div><span>Operação financeira</span><h2>{data.cash?'Caixa aberto':'Caixa fechado'}</h2></div></header>
+  if (!data.permissions.some(permission => ['cash.open','cash.close','reports.financial'].includes(permission))) return null;
+  return <details className="tool-panel cash-panel cash-disclosure">
+    <summary>{data.cash?'Caixa aberto':'Caixa fechado'}<span>Consultar e gerir caixa</span></summary>
     {data.cash && <p className="cash-balance"><span>Saldo esperado</span><strong>{Number(data.cash.expectedBalance).toLocaleString('pt-MZ',{minimumFractionDigits:2,maximumFractionDigits:2})} MT</strong></p>}
     {allowed && <form onSubmit={e=>{e.preventDefault();action.mutate();}}><label>{data.cash?'Numerário contado no fecho (MT)':'Saldo inicial (MT)'}<input type="number" min="0" step="0.01" value={amount} onChange={e=>setAmount(Number(e.target.value))} required/></label>
       {data.cash && <p className="cash-difference">Diferença: {(amount-Number(data.cash.expectedBalance)).toLocaleString('pt-MZ',{minimumFractionDigits:2,maximumFractionDigits:2})} MT</p>}
       <button disabled={action.isPending}>{action.isPending?'A guardar…':data.cash?'Fechar e conferir caixa':'Abrir caixa'}</button>
     </form>}
     {action.isError && <p role="alert">{action.error.message}</p>}
-  </section>;
+  </details>;
 }
